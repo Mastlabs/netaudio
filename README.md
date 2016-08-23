@@ -1,3 +1,7 @@
 # NETAUDIO.
 
-Coming soon.
+Client/Server Buffered Audio Socket
+
+Requirments:
+	pip install -r requirements.txt
+
