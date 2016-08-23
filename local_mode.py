@@ -6,6 +6,10 @@ import wave
 
 CHUNK = 1024
 
+if len(sys.argv) < 2:
+	print("Local sampler to play wave files from local key press events.\nUsage: %s filename.wav" % sys.argv[0])
+	sys.exit(-1)
+
 wf = wave.open(sys.argv[1], 'rb')
 p = pyaudio.PyAudio()
 
