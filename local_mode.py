@@ -5,6 +5,7 @@ import pyaudio
 import wave
 
 CHUNK = 1024
+WAVPATH = "./wav"
 
 # there is no file argument. These are pre-loaded samples (C-G.wav) from a known directory, that the key-press event plays. Not a file arg.
 
