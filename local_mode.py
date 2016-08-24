@@ -6,6 +6,8 @@ import wave
 
 CHUNK = 1024
 
+# there is no file argument. These are pre-loaded samples (C-G.wav) from a known directory, that the key-press event plays. Not a file arg.
+
 if len(sys.argv) < 2:
 	print("Local sampler to play wave files from local key press events.\nUsage: %s filename.wav" % sys.argv[0])
 	sys.exit(-1)
