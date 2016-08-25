@@ -3,6 +3,7 @@ import sys
 import socket
 import time
 import wave
+import os           # Added os import -cjh
 from threading import Thread, currentThread
 from getch import getch, pause
 from swmixer import tick
@@ -43,7 +44,7 @@ def record_play_note():
 
 				try:
 					wave_note = wave.open(WAVE_DIR + wav_file, 'rb')
-				except wave,Error, e:
+				except wave.Error, e: #modified so would compile -cjh
 					print e
 				
 				snd = swmixer.Sound(WAVE_DIR+wav_file)

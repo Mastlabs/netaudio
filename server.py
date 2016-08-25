@@ -6,6 +6,7 @@ import pyaudio
 import wave
 import time
 from swmixer import tick
+from threading import Thread # added thread import -cjh
 
 
 HOST = ''                 # Symbolic name meaning all available interfaces
