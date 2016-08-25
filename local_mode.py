@@ -1,39 +1,47 @@
 import os
 import sys
+import swmixer
 import time
-import pyaudio
-import wave
+from getch import getch, pause
+from threading import Thread, currentThread
 
-CHUNK = 1024
-WAVPATH = "./wav"
+WAVE_DIR = os.getcwd()+'/wav/'
+swmixer.init(samplerate=44100, chunksize=1024, stereo=True)
+swmixer.start()
 
-# there is no file argument. These are pre-loaded samples (C-G.wav) from a known directory, that the key-press event plays. Not a file arg.
+print 'press Q to quit'
 
-if len(sys.argv) < 2:
-	print("Local sampler to play wave files from local key press events.\nUsage: %s filename.wav" % sys.argv[0])
-	sys.exit(-1)
+def keyboard():
+	"""
+	play local sample (samples) and streams that audio back out to the local device audio output
+	"""
 
-wf = wave.open(sys.argv[1], 'rb')
-p = pyaudio.PyAudio()
+	print currentThread().getName(), 'Start'
 
-stream = p.open(
-				format=p.get_format_from_width(wf.getsampwidth()),
-                channels=wf.getnchannels(),
-				rate=wf.getframerate(),
-				output=True
-			)
+	while True:
+		
+		key = getch()
+		wav_file = None
 
-print 'input latency ', stream.get_input_latency()
+		if key == 'Q':
+			break
 
-data = wf.readframes(CHUNK)
+		print 'pressed key is: ', key
 
-while data != '':
-	stream.write(data)  		# Local play accomplished by buffer audio wav file
-	data = wf.readframes(CHUNK)
+		for note in os.listdir(WAVE_DIR):
+			if (key.upper()+'.wav' or key.lower()+'.wav') == note:
+				wav_file = note
+				break	
+		
+		if wav_file:
+			snd = swmixer.Sound(WAVE_DIR+wav_file)
+			snd.play()
+		
+		else:
+			print 'bad key pressed'
 
-print 'output latency ', stream.get_output_latency()
 
-stream.stop_stream()
-stream.close()	 # close pyaudio connex
-wf.close()
-p.terminate()
+keys = Thread(name='keyb', target=keyboard)
+keys.setDaemon(True)
+keys.start()
+keys.join()
