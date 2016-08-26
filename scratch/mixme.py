@@ -1,12 +1,12 @@
 import swmixer
 import sys
 import time
-import atexit
 from threading import Thread
 from getch import getch, pause
 
 # initialize the mixer
 swmixer.init(samplerate=44100, chunksize=1024, stereo=True)
+#swmixer.start()
 
 # pre-load the samples
 c = swmixer.Sound("C.wav")
@@ -20,7 +20,7 @@ def keyboard():
     while True:
         key = getch()
         if key == 'c':
-            c.play()
+            c.play(offset=90000)
         elif key == 'd':
             d.play()
         elif key == 'e':
@@ -29,6 +29,8 @@ def keyboard():
             f.play()
         elif key == 'g':
             g.play()
+        elif key == 'Q':
+            break
         else:
             print "Wrong Key .."
 
@@ -41,8 +43,11 @@ if __name__ == "__main__":
 
     # Start sampler/mixer thread
     mix = Thread(target=runmixer)
+    mix.setDaemon(True)
     mix.start()
 
     # Start keyboard events
     keys = Thread(target=keyboard)
+    keys.setDaemon(True)
     keys.start()
+    keys.join()
