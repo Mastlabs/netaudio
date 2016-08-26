@@ -43,6 +43,7 @@ gid = 1
 glock = thread.allocate_lock()
 ginput_device_index = None
 goutput_device_index = None
+obuffer = False
 
 class _SoundSourceData:
     def __init__(self, data, loops):
@@ -566,7 +567,7 @@ def get_microphone():
     glock.release()
     return numpy.fromstring(gmicdata, dtype=numpy.int16)
     
-def tick(extra=None):
+def tick(extra=None, mixer=False):
     """Main loop of mixer, mix and do audio IO
 
     Audio sources are mixed by addition and then clipped.  Too many
@@ -602,10 +603,13 @@ def tick(extra=None):
     glock.release()
     odata = (b.astype(numpy.int16)).tostring()
     # yield rather than block, pyaudio doesn't release GIL
+    
+    if obuffer == True:
+        return odata
+
     while gstream.get_write_available() < gchunksize: time.sleep(0.001)
     gstream.write(odata, gchunksize)
-    return odata
-
+    
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
     """Initialize mixer
 
@@ -621,7 +625,7 @@ def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_
     microphone - whether to enable microphone recording
     
     """
-    print 'local'
+    print 'localss'
     global gstereo, gchunksize, gsamplerate, gchannels, gsamplewidth
     global ginit
     assert (10000 < samplerate <= 48000)
