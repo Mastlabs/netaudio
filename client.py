@@ -10,13 +10,12 @@ from swmixer import tick
 
 
 HOST = ''
-PORT = 12345
+PORT = 5000
+
 buffer, frames = [], []
 WAVE_DIR = os.getcwd()+'/wav/'
 
-
-def swmixtick(tick):
-	return
+swmixer.init(samplerate=44100, chunksize=1024, stereo=True)
 
 def record_play_note():
 	"""
@@ -24,6 +23,7 @@ def record_play_note():
 	"""
 
 	print currentThread().getName(), 'Start'
+
 	wave_dir = os.listdir(WAVE_DIR)
 
 	while True:
@@ -33,6 +33,9 @@ def record_play_note():
 
 		print 'pressed key is: ', key
 
+		if key == 'q':
+			break
+
 		if wave_dir:
 			for note in wave_dir:
 				if (key.upper()+'.wav' or key.lower()+'.wav') == note:
@@ -40,21 +43,15 @@ def record_play_note():
 					break
 					
 			if wav_file:
-				print 'open wave file', wav_file
-
-				try:
-					wave_note = wave.open(WAVE_DIR + wav_file, 'rb')
-				except wave.Error, e: #modified so would compile -cjh
-					print e
-				
+				print 'open wave file', WAVE_DIR+wav_file
 				snd = swmixer.Sound(WAVE_DIR+wav_file)
 				snd.play()
 
+				print len(buffer)
 		else:
 			break
 	
 	print currentThread().getName(), 'Exit'
-
 	return
 
 def runmixer():
@@ -62,8 +59,9 @@ def runmixer():
 	print currentThread().getName(), 'Start'
 
 	while True:
-		swmixer.tick()
-
+		t=swmixer.tick()
+		frames.append(t)
+		
 	print currentThread().getName(), 'Exit'
 	return
 
@@ -71,20 +69,21 @@ def stream():
 	""" Read mix buffer and write to output socket"""
 	
 	print currentThread().getName(), 'Start'
-	
+	print HOST, PORT
+
 	udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	
 	while True:
-		if len(buffer) > 0:
-			val = buffer.pop(0)
+		if len(frames) > 0:
+			val = frames.pop(0)
+			print val
 			udp.sendto(val, (HOST, PORT))
+
 		else:
 			continue
 
 	udp.close()
-	
-	print currentThread().getName(), 'Exit'
 
+	print currentThread().getName(), 'Exit'
 	return
 
 
@@ -92,18 +91,17 @@ if __name__ == '__main__':
 
 	CHUNK = 64
 
-	play_note = Thread(name='record_buffer', target=record_play_note)
 	mixer = Thread(name='mixer', target=runmixer)
-	stream = Thread(name='streaming', target=stream)
+	play_note = Thread(name='record_buffer', target=record_play_note)
+	# stream = Thread(name='streaming', target=stream)
 
-	play_note.setDaemon(True)
 	mixer.setDaemon(True)
-	stream.setDaemon(True)
+	play_note.setDaemon(True)
+	# stream.setDaemon(True)
 
-	play_note.start()
 	mixer.start()
-	stream.start()
+	play_note.start()
+	# stream.start()
 
 	play_note.join()
-	mixer.join()
-	stream.join()
+	# stream.join()
