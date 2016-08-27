@@ -39,7 +39,7 @@ def udpStream(CHUNK, CHANNELS):
 
 		if soundData:
 			sent = udp.sendto(soundData, addr)
-        	print >>sys.stderr, 'sent %s bytes back to %s' % (len(sent), addr)
+        	print >>sys.stderr, 'sent %s bytes back to %s' % (sent, addr)
 
 	udp.close()
 
