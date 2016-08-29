@@ -1,19 +1,32 @@
+import os
+import datetime
+import logging
 import swmixer
-import sys
 import socket
+import sys
 import time
-import wave
-import os           # Added os import -cjh
 from threading import Thread, currentThread
 from getch import getch, pause
-from swmixer import tick
 
-
-buffer, frames = [], []
 WAVE_DIR = os.getcwd()+'/wav/'
 
-swmixer.init(samplerate=44100, chunksize=1024, stereo=True)
+# initialize the mixer
+swmixer.init(samplerate=44100, chunksize=64, stereo=True)
+swmixer.obuffer = True
 
+# setup socket
+HOST = ''
+PORT = 12345
+
+logging.basicConfig(
+					format='%(asctime)s %(levelname)s %(message)s',
+					filename='client_logs.log',
+                    level=logging.INFO,
+				)
+
+logger = logging.getLogger('client')
+
+# keyboard takes qwerty input
 def record_play_note():
 	"""
 	play local sample (samples) and streams that audio back out to the local device audio output
@@ -48,64 +61,39 @@ def record_play_note():
 			break
 	
 	print currentThread().getName(), 'Exit'
-	return
 
-def runmixer():
 
-	print currentThread().getName(), 'Start'
+def runmixer_and_stream():
+	"""
+	The samplerate and chunksize will limit your framerate. If you set the samplerate to 44100 samples per second, 
+	and each chunk is 1024 samples, then each call to swmixer.tick() will process 1024 samples corresponding to 
+	0.0232 seconds of audio. This will lock your framerate at 1/.0232=43.1 frames per second. If you 
+	call swmixer.tick() faster than this, that's OK, it will just block until more audio can be send to 
+	the soundcard. If you call swmixer.tick() slower than 43.1 times a second, there will be audio glitches.
 	
-	swmixer.obuffer = True
+	DO NOT USE LOGGER (or ANY IO OPS) IN TICK, PUT HERE CAUSE GLITCHES. I AM SORT IT OUT LATER, USE PRINT FOR NOW
+	"""
+
+	udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
 	while True:
-		frames.append(swmixer.tick())
 		
-	print currentThread().getName(), 'Exit'
-	return
+		data = swmixer.tick()
+		print "PLAY TIK FRAMES: " + str(len(data))
 
-def stream():
-	""" Read mix buffer and write to output socket"""
+		time.sleep(0.001)
+		udp.sendto(data, (HOST, PORT))
+		
+		rcv_data, server = udp.recvfrom(512)  		# 
+		if rcv_data:
+			swmixer.gstream.write(rcv_data)
+
+if __name__ == "__main__":
+
+	# Start sampler/mixer thread
+	mix = Thread(target=runmixer_and_stream)
+	keys = Thread(target=record_play_note)
 	
-	HOST = ''
-	PORT = 5000
-
-	print currentThread().getName(), 'Start'
-	udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		
-	while True:
-
-		if len(frames) > 0:
-			print >>sys.stderr, 'sending'
-			udp_sock.sendto(frames.pop(0), (HOST, PORT))
-		
-		else:
-			# wait for key press event 
-			continue
-
-		print >>sys.stderr, 'waiting to receive'
-		
-		data, server = udp_sock.recvfrom(4096)
-		if data:
-			swmixer.gstream.write(data, swmixer.gchunksize)
-
-	udp_sock.close()
-
-	print currentThread().getName(), 'Exit'
-	return
-
-if __name__ == '__main__':
-
-	mixer = Thread(name='mixer', target=runmixer)
-	play_note = Thread(name='record_buffer', target=record_play_note)
-	stream = Thread(name='streaming', target=stream)
-
-	mixer.setDaemon(True)
-	play_note.setDaemon(True)
-	stream.setDaemon(True)
-
-	mixer.start()
-	play_note.start()
-	stream.start()
-
-	play_note.join()
-	stream.join()
-
-	
+	keys.start()
+	mix.start()
+	mix.join()

@@ -567,7 +567,7 @@ def get_microphone():
     glock.release()
     return numpy.fromstring(gmicdata, dtype=numpy.int16)
     
-def tick(extra=None, mixer=False):
+def tick(extra=None):
     """Main loop of mixer, mix and do audio IO
 
     Audio sources are mixed by addition and then clipped.  Too many

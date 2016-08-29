@@ -1,56 +1,55 @@
-import os
-import sys
-import socket
+import logging
 import swmixer
 import pyaudio
-import wave
 import time
-from swmixer import tick
+import datetime
+import socket
 from getch import getch, pause
-from threading import Thread , currentThread  # added thread import -cjh
+from threading import Thread
 
+CHUNK = 128
+CHANNELS = 2
+HOST = '0.0.0.0'
+PORT = 12345
 
-HOST = ''                 # Symbolic name meaning all available interfaces
-PORT = 5000              # Arbitrary non-privileged port
-frames = []
+logging.basicConfig(
+                    format='%(asctime)s %(levelname)s %(message)s',
+                    filename='server_logs.log',
+                    level=logging.INFO,
+                )
 
-swmixer.init(samplerate=44100, chunksize=1024, stereo=True)
+logger = logging.getLogger('server')
 
-def udpStream(CHUNK, CHANNELS):
+swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
 
-	udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	udp.bind((HOST, PORT))
-	
-	print '-'*10
-	print 'To quit server unconditionally, press q'
+def udpStream():
 
-	while True:
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp.bind((HOST, PORT))
 
-		key = getch()
-		if key == 'q':
-			print 'Server going down'
-			break
+    while True:
+        data, addr = udp.recvfrom(CHUNK * CHANNELS * 2)
+        print 'recv len of ', len(data)
+        #TODO: swmixer.gstream.write(data)       # Enable this step means for debugging, here we can check origin frames order
+        
+        if data:
+            logger.info('stream back %s to clients'%len(data))
+            sent = udp.sendto(data, addr)
 
-		print >>sys.stderr, '\nwaiting to receive message'
-		
-		soundData, addr = udp.recvfrom(CHUNK * CHANNELS * 2)
-		
-		print >>sys.stderr, 'received %s bytes from %s' % (len(soundData), addr)
+    udp.close()
 
-		if soundData:
-			sent = udp.sendto(soundData, addr)
-        	print >>sys.stderr, 'sent %s bytes back to %s' % (sent, addr)
+def killserver():
+    while True:
+        key = getch()
+        if key == "Q":
+            break
 
-	udp.close()
-
-				
 if __name__ == "__main__":
-	
-	CHUNK = 2048
-	CHANNELS = 2	
-	udpStream(CHUNK, CHANNELS)
 
-	# Ts = Thread(name='udpstream', target = udpStream, args=(CHUNK,))
-	# Ts.setDaemon(True)
-	# Ts.start()
-	# Ts.join()
+    Tq = Thread(target = killserver)
+    Tq.start()
+
+    Ts = Thread(target = udpStream)
+    Ts.setDaemon(True)
+    Ts.start()
+
