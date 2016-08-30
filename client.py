@@ -8,16 +8,6 @@ import time
 from threading import Thread, currentThread
 from getch import getch, pause
 
-WAVE_DIR = os.getcwd()+'/wav/'
-
-# initialize the mixer
-swmixer.init(samplerate=44100, chunksize=64, stereo=True)
-swmixer.obuffer = True
-
-# setup socket
-HOST = ''
-PORT = 12345
-
 logging.basicConfig(
 					format='%(asctime)s %(levelname)s %(message)s',
 					filename='client_logs.log',
@@ -25,14 +15,13 @@ logging.basicConfig(
 				)
 
 logger = logging.getLogger('client')
+frames = []
 
 # keyboard takes qwerty input
 def record_play_note():
 	"""
 	play local sample (samples) and streams that audio back out to the local device audio output
 	"""
-
-	print currentThread().getName(), 'Start'
 
 	wave_dir = os.listdir(WAVE_DIR)
 
@@ -41,7 +30,7 @@ def record_play_note():
 		key = getch()
 		wav_file = None
 
-		print 'pressed key is: ', key
+		logger.info('pressed key is: %s'%key)
 
 		if key == 'q':
 			break
@@ -53,47 +42,40 @@ def record_play_note():
 					break
 					
 			if wav_file:
-				print 'open wave file', WAVE_DIR+wav_file
-				snd = swmixer.Sound(WAVE_DIR+wav_file)
-				snd.play()
+				key_event = wav_file
+				s.send(key_event)
 
 		else:
 			break
 	
-	print currentThread().getName(), 'Exit'
+	s.close()
 
-
-def runmixer_and_stream():
-	"""
-	The samplerate and chunksize will limit your framerate. If you set the samplerate to 44100 samples per second, 
-	and each chunk is 1024 samples, then each call to swmixer.tick() will process 1024 samples corresponding to 
-	0.0232 seconds of audio. This will lock your framerate at 1/.0232=43.1 frames per second. If you 
-	call swmixer.tick() faster than this, that's OK, it will just block until more audio can be send to 
-	the soundcard. If you call swmixer.tick() slower than 43.1 times a second, there will be audio glitches.
+def stream_incoming_odata():
 	
-	DO NOT USE LOGGER (or ANY IO OPS) IN TICK, PUT HERE CAUSE GLITCHES. I AM SORT IT OUT LATER, USE PRINT FOR NOW
-	"""
-
-	udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
 	while True:
-		
-		data = swmixer.tick()
-		print "PLAY TIK FRAMES: " + str(len(data))
-
-		time.sleep(0.001)
-		udp.sendto(data, (HOST, PORT))
-		
-		rcv_data, server = udp.recvfrom(512)  		# 
-		if rcv_data:
-			swmixer.gstream.write(rcv_data)
+		rcv_key_event_odata = s.recv(CHUNK * CHANNELS * 2)
+		if rcv_key_event_odata:
+			logger.info('receive audio stream %s'%len(rcv_key_event_odata))
+			swmixer.gstream.write(rcv_key_event_odata)
 
 if __name__ == "__main__":
 
-	# Start sampler/mixer thread
-	mix = Thread(target=runmixer_and_stream)
-	keys = Thread(target=record_play_note)
-	
+	WAVE_DIR = os.getcwd()+'/wav/'
+	CHUNK = 64
+	CHANNELS = 2
+
+	# setup socket
+	HOST = ''
+	PORT = 12345
+
+	# initialize the mixer
+	swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
+	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	s.connect((HOST, PORT))
+
+	keys = Thread(target=record_play_note)	
 	keys.start()
-	mix.start()
-	mix.join()
+	
+	stream = Thread(target=stream_incoming_odata)
+	stream.start()
+	stream.join()
