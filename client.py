@@ -6,8 +6,10 @@ import sys
 import time
 from threading import Thread, currentThread
 from getch import getch, pause
-from config import swmixer, CHUNK, CHANNELS
+from config import swmixer, CHANNELS
 
+CHUNK = 64
+CHANNELS = 2
 
 logging.basicConfig(
 					format='%(asctime)s %(levelname)s %(message)s',

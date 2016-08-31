@@ -7,7 +7,11 @@ import datetime
 import socket
 from getch import getch, pause
 from threading import Thread, currentThread
-from config import swmixer, CHUNK, CHANNELS, WAVE_DIR, r, cPickle
+from config import swmixer,  WAVE_DIR, r, cPickle
+
+
+CHUNK = 128
+CHANNELS = 2
 
 logging.basicConfig(
 					format='%(asctime)s %(levelname)s %(message)s',
@@ -41,9 +45,7 @@ def runmixer_and_stream():
 		
 		odata = swmixer.tick()
 		time.sleep(0.001)
-		
-		# DEBUG: USE MIXER HERE IF SOUND DOES NOT HAPPEN ON CLIENT SIDE: swmixer.gstream.write(odata)
-		# swmixer.gstream.write(odata)
+		swmixer.gstream.write(odata)
 
 		if odata != '':
 			logger.info('sending %s audio frames'%(len(odata)))

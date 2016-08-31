@@ -6,8 +6,8 @@ import swmixer
 
 r = redis.StrictRedis(host='localhost')
 
-CHUNK = 60
-CHANNELS = 1
+CHUNK = 128
+CHANNELS = 2 
 WAVE_DIR = os.getcwd()+'/wav/'
 
 """
