@@ -6,7 +6,7 @@ import swmixer
 
 r = redis.StrictRedis(host='localhost')
 
-CHUNK = 62
+CHUNK = 60
 CHANNELS = 1
 WAVE_DIR = os.getcwd()+'/wav/'
 
@@ -25,9 +25,9 @@ default - 4
 swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
 swmixer.obuffer = True
 
-if r.hkeys('samples'):
-	pass
-else:
-	for note in os.listdir(WAVE_DIR):
-		snd = swmixer.Sound(WAVE_DIR+note)
-		r.hset('samples', note.split('.')[0], cPickle.dumps(snd))
+# if r.hkeys('samples'):
+# 	pass
+# else:
+# 	for note in os.listdir(WAVE_DIR):
+# 		snd = swmixer.Sound(WAVE_DIR+note)
+# 		r.hset('samples', note.split('.')[0], cPickle.dumps(snd))

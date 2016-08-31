@@ -17,6 +17,14 @@ logging.basicConfig(
 
 logger = logging.getLogger('server')
 
+c = swmixer.Sound('wav/C.wav')
+d = swmixer.Sound('wav/D.wav')
+e = swmixer.Sound('wav/E.wav')
+f = swmixer.Sound('wav/F.wav')
+g = swmixer.Sound('wav/G.wav')
+
+notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
+	
 def runmixer_and_stream():
 	"""
 	The samplerate and chunksize will limit your framerate. If you set the samplerate to 44100 samples per second, 
@@ -65,7 +73,10 @@ if __name__ == "__main__":
 	while True:
 		rcv_key_event = conn.recv(CHUNK * CHANNELS * 2)
 		if rcv_key_event != '':
-			note_content = r.hget('samples', rcv_key_event.upper() or rcv_key_event.lower())
-			if note_content is not None:
-				cPickle.loads(note_content).play()
+			snd = notes.get(rcv_key_event, None)
+			if snd: snd.play()
+
+			# note_content = r.hget('samples', rcv_key_event.upper() or rcv_key_event.lower())
+			# if note_content is not None:
+			# 	cPickle.loads(note_content).play()
 				
