@@ -1,12 +1,13 @@
 import os
 import datetime
 import logging
-import swmixer
 import socket
 import sys
 import time
 from threading import Thread, currentThread
 from getch import getch, pause
+from config import swmixer, CHUNK, CHANNELS
+
 
 logging.basicConfig(
 					format='%(asctime)s %(levelname)s %(message)s',
@@ -15,63 +16,53 @@ logging.basicConfig(
 				)
 
 logger = logging.getLogger('client')
-frames = []
 
-# keyboard takes qwerty input
 def record_play_note():
 	"""
 	play local sample (samples) and streams that audio back out to the local device audio output
 	"""
 
-	wave_dir = os.listdir(WAVE_DIR)
+	logger.info( currentThread().getName() + 'Start' )
+	global term
 
 	while True:
 		
 		key = getch()
-		wav_file = None
-
-		logger.info('pressed key is: %s'%key)
+		
+		logger.info('pressed key is: %s'% key)
 
 		if key == 'q':
+			term = True
 			break
 
-		if wave_dir:
-			for note in wave_dir:
-				if (key.upper()+'.wav' or key.lower()+'.wav') == note:
-					wav_file = note
-					break
-					
-			if wav_file:
-				key_event = wav_file
-				s.send(key_event)
+		s.send(key)
 
-		else:
-			break
-	
-	s.close()
+	logger.info( currentThread().getName() + 'Exit' )
+
 
 def stream_incoming_odata():
 	
 	while True:
+		
+		if term == True:
+			break
+
 		rcv_key_event_odata = s.recv(CHUNK * CHANNELS * 2)
 		if rcv_key_event_odata:
-			logger.info('receive audio stream %s'%len(rcv_key_event_odata))
+			logger.info( 'receive audio stream of %s'% len(rcv_key_event_odata) )
 			swmixer.gstream.write(rcv_key_event_odata)
+
+	s.close()
+
 
 if __name__ == "__main__":
 
-	WAVE_DIR = os.getcwd()+'/wav/'
-	CHUNK = 64
-	CHANNELS = 2
-
-	# setup socket
 	HOST = ''
 	PORT = 12345
 
-	# initialize the mixer
-	swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.connect((HOST, PORT))
+	term = False
 
 	keys = Thread(target=record_play_note)	
 	keys.start()

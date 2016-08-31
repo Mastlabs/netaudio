@@ -2,19 +2,13 @@ import os
 import sys
 import time
 import logging
-import swmixer
 import pyaudio
 import datetime
 import socket
 from getch import getch, pause
-from Queue import Queue
 from threading import Thread, currentThread
+from config import swmixer, CHUNK, CHANNELS, WAVE_DIR, r, cPickle
 
-
-CHUNK = 128
-CHANNELS = 2
-
-WAVE_DIR = os.getcwd()+'/wav/'
 logging.basicConfig(
 					format='%(asctime)s %(levelname)s %(message)s',
 					filename='server_logs.log',
@@ -22,8 +16,6 @@ logging.basicConfig(
 				)
 
 logger = logging.getLogger('server')
-swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
-swmixer.obuffer = True
 
 def runmixer_and_stream():
 	"""
@@ -36,15 +28,21 @@ def runmixer_and_stream():
 
 	"""
 	
+	print currentThread().getName(), 'Start'
 	while True:
 		
 		odata = swmixer.tick()
 		time.sleep(0.001)
-		# DEBUG: USE MIXER HERE IF SOUNDS NOT HAPPEN ON CLIENT SIDE: swmixer.gstream.write(odata)
+		
+		# DEBUG: USE MIXER HERE IF SOUND DOES NOT HAPPEN ON CLIENT SIDE: swmixer.gstream.write(odata)
+		# swmixer.gstream.write(odata)
+
 		if odata != '':
 			logger.info('sending %s audio frames'%(len(odata)))
 			conn.send(odata)
 
+	print currentThread().getName(), 'Exit'
+	conn.close()
 
 if __name__ == "__main__":
 
@@ -62,10 +60,12 @@ if __name__ == "__main__":
 	Ts = Thread(target = runmixer_and_stream)
 	Ts.start()
 
-	logger.info('Server listening....')
-
+	logger.info( 'Server listening....' )
+	
 	while True:
 		rcv_key_event = conn.recv(CHUNK * CHANNELS * 2)
 		if rcv_key_event != '':
-			snd = swmixer.Sound(WAVE_DIR+rcv_key_event)
-			snd.play()
+			note_content = r.hget('samples', rcv_key_event.upper() or rcv_key_event.lower())
+			if note_content is not None:
+				cPickle.loads(note_content).play()
+				

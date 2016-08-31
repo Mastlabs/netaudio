@@ -603,13 +603,14 @@ def tick(extra=None):
     glock.release()
     odata = (b.astype(numpy.int16)).tostring()
     # yield rather than block, pyaudio doesn't release GIL
+    while gstream.get_write_available() < gchunksize: time.sleep(0.001)
     
     if obuffer == True:
         return odata
-
-    while gstream.get_write_available() < gchunksize: time.sleep(0.001)
-    gstream.write(odata, gchunksize)
+    else:
+        gstream.write(odata, gchunksize)
     
+
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
     """Initialize mixer
 
@@ -625,7 +626,8 @@ def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_
     microphone - whether to enable microphone recording
     
     """
-    print 'localss'
+    start_time = time.time()
+    print 'player init', start_time
     global gstereo, gchunksize, gsamplerate, gchannels, gsamplewidth
     global ginit
     assert (10000 < samplerate <= 48000)
