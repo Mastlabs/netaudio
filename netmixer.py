@@ -18,6 +18,7 @@ gsamplewidth = 2
 gmixer_srcs = []
 gid = 1
 glock = thread.allocate_lock()
+gtick = 0
 
 class _SoundSourceData:
     def __init__(self, data, loops):
@@ -467,6 +468,7 @@ def tick():
     """
     global ginit
     global gmixer_srcs
+    global gtick
     rmlist = []
     if not ginit:
         return
@@ -486,7 +488,7 @@ def tick():
 
     glock.release()
     odata = (b.astype(numpy.int16)).tostring()
-    return(odata)
+    return (odata, gtick)
     
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer
