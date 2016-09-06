@@ -1,31 +1,13 @@
-"""Advanced Realtime Software Mixer
-
-This module implements an advanced realtime sound mixer suitable for
-use in games or other audio applications.  It supports loading sounds
-in uncompressed WAV format.  It can mix several sounds together during
-playback.  The volume and position of each sound can be finely
-controlled.  The mixer can use a separate thread so clients never block
-during operations.  Samples can also be looped any number of times.
-Looping is accurate down to a single sample, so well designed loops
-will play seamlessly.  Also supports sound recording during playback.
-
-Copyright 2008, Nathan Whitehead
-Released under the LGPL
-
 """
-
+NetMixer Realtime Software Mixer
+Copyright 2016, Christian Hessler
+    
+"""
 
 import time
 import wave
 import thread
-
 import numpy
-import pyaudio
-
-try:
-    import mad
-except:
-    "MP3 streaming disabled"
 
 ginit = False
 gstereo = True
@@ -33,16 +15,9 @@ gchunksize = 1024
 gsamplerate = 44100
 gchannels = 1
 gsamplewidth = 2
-gpyaudio = None
-gstream = None
-gmicstream = None
-gmic = False
-gmicdata = None
 gmixer_srcs = []
 gid = 1
 glock = thread.allocate_lock()
-ginput_device_index = None
-goutput_device_index = None
 
 class _SoundSourceData:
     def __init__(self, data, loops):
@@ -283,24 +258,7 @@ class Sound:
                                              dtype=numpy.uint8)
                 self.data = self.data * 256.0
             wf.close()
-        # Here's how to do it for MP3
-        if filename[-3:] in ['mp3','MP3']:
-            mf = mad.MadFile(filename)
-            # HACK ALERT
-            # Looks like MAD always gives us stereo
-            ##nc = mf.mode()
-            ##if nc == 0: nc = 1
-            nc = 2
-            self.framerate = mf.samplerate()
-            fr = mf.samplerate()
-            # read data
-            data = []
-            while True:
-                r = mf.read()
-                if r is None: break
-                data.append(r[:])
-            self.data = numpy.fromstring(''.join(data), dtype=numpy.int16)
-            del(mf)
+
         if self.data is None:
             assert False
         # Resample if needed
@@ -405,15 +363,6 @@ def _create_stream(filename, checks):
             assert(False) # unsupported for WAV streams
         stream.seek_time = str_seek_time
         return stream
-    # Here's how to do it for MP3
-    if filename[-3:] in ['mp3','MP3']:
-        mf = mad.MadFile(filename)
-        if checks:
-            assert(gchannels == 2) # MAD always returns stereo
-            assert(mf.samplerate() == gsamplerate)
-        stream = mf
-        return stream
-    assert(False) # filename must have wav or mp3 extension
 
 class StreamingSound:
     """Represents a playable sound stream"""
@@ -509,72 +458,12 @@ def calc_vol(t, env):
     # volume is linear interpolation between points
     return env[n - 1][1] * (1.0 - f) + env[n][1] * f
 
-def microphone_on():
-    """Turn on microphone
-
-    Schedule audio input during main mixer tick.
-
-    """
-    global gstream, gmicstream, gmic
-    glock.acquire()
-    if gmicstream is not None:
-        gmicstream.close()
-    if gstream is not None:
-        gstream.close()
-    gmicstream = gpyaudio.open(
-        format = pyaudio.paInt16,
-        channels = gchannels,
-        rate = gsamplerate,
-        input_device_index = ginput_device_index,
-        input = True)
-    gstream = gpyaudio.open(
-        format = pyaudio.paInt16,
-        channels = gchannels,
-        rate = gsamplerate,
-        output_device_index = goutput_device_index,
-        output = True)
-    gmic = True
-    glock.release()
-
-def microphone_off():
-    """Turn off microphone"""
-    global gstream, gmicstream, gmic
-    glock.acquire()
-    if gmicstream is not None:
-        gmicstream.close()
-    if gstream is not None:
-        gstream.close()
-    gstream = gpyaudio.open(
-        format = pyaudio.paInt16,
-        channels = gchannels,
-        rate = gsamplerate,
-        output_device_index = goutput_device_index,
-        output = True)
-    gmic = False
-    glock.release()
-
-def get_microphone():
-    """Return raw data from microphone as Numpy array
-
-    Default format will be 16-bit signed mono.  Format will match
-    audio playback.  You must call tick() every frame to update the
-    results from this function.
-
-    """
-    glock.acquire()
-    d = gmicdata
-    glock.release()
-    return numpy.fromstring(gmicdata, dtype=numpy.int16)
-    
-def tick(extra=None):
+def tick():
     """Main loop of mixer, mix and do audio IO
 
     Audio sources are mixed by addition and then clipped.  Too many
     loud sources will cause distortion.
 
-    extra is for extra sound data to mix into output
-      must be in numpy array of correct length
-      
     """
     global ginit
     global gmixer_srcs
@@ -591,22 +480,15 @@ def tick(extra=None):
             b += s
         if sndevt.done:
             rmlist.append(sndevt)
-    if extra is not None:
-        b += extra
     b = b.clip(-32767.0, 32767.0)
     for e in rmlist:
         gmixer_srcs.remove(e)
-    global gmicdata
-    if gmic:
-        gmicdata = gmicstream.read(sz)
+
     glock.release()
     odata = (b.astype(numpy.int16)).tostring()
-    # yield rather than block, pyaudio doesn't release GIL
+    return(odata)
     
-    while gstream.get_write_available() < gchunksize: time.sleep(0.001)
-    gstream.write(odata, gchunksize)
-    
-def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
+def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer
 
     Must be called before any sounds can be played or loaded.
@@ -618,10 +500,8 @@ def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_
       larger is more buffered, less stuttery but less responsive
       Can be any size, does not need to be a power of two. (default 1024)
     stereo - whether to play back in stereo
-    microphone - whether to enable microphone recording
-    
     """
-    print 'localss'
+    
     global gstereo, gchunksize, gsamplerate, gchannels, gsamplewidth
     global ginit
     assert (10000 < samplerate <= 48000)
@@ -634,28 +514,6 @@ def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_
     else:
         gchannels = 1
     gsamplewidth = 2
-    global gpyaudio, gstream
-    gpyaudio = pyaudio.PyAudio()
-    # It's important to open Input, then Output (not sure why)
-    # Other direction gives very annoying sound errors (1/2 rate?)
-    global ginput_device_index, goutput_device_index
-    ginput_device_index = input_device_index
-    goutput_device_index = output_device_index
-    if microphone:
-        global gmicstream, gmic
-        gmicstream = gpyaudio.open(
-            format = pyaudio.paInt16,
-            channels = gchannels,
-            rate = gsamplerate,
-            input_device_index = input_device_index,
-            input = True)
-        gmic = True
-    gstream = gpyaudio.open(
-        format = pyaudio.paInt16,
-        channels = gchannels,
-        rate = gsamplerate,
-        output_device_index = output_device_index,
-        output = True)
     ginit = True
 
 def start():
@@ -672,11 +530,6 @@ def quit():
     global ginit
     glock.acquire()
     ginit = False
-    if gstream is not None:
-        gstream.close()
-    if gmicstream is not None:
-        gmicstream.close()
-    gpyaudio.terminate()
     glock.release()
 
 def set_chunksize(size=1024):

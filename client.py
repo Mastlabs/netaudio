@@ -1,74 +1,137 @@
+###########################################
+# CLIENT.PY
+###########################################
+# The client.py is the local "plugin" 
+# or standalone app in the NetAudio suite.
+# It captures local keyboard input and
+# streams MIDI to the server to play
+# remote instruments, then accepts and
+# plays back the remote audio in real time.
+###########################################
 import os
 import datetime
 import logging
+import pygame
+import swmixer
 import socket
+import netmidi
 import sys
 import time
+import json
+import thread
 from threading import Thread, currentThread
 from getch import getch, pause
-from config import swmixer, CHANNELS
 
 CHUNK = 64
 CHANNELS = 2
+MODE = 'local'
 
-logging.basicConfig(
-					format='%(asctime)s %(levelname)s %(message)s',
-					filename='client_logs.log',
-                    level=logging.INFO,
-				)
+# setup socket
+HOST = ''
+PORT = 12345
 
 logger = logging.getLogger('client')
+frames = []
 
+swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
+
+# Logger
+logging.basicConfig(
+    format='%(asctime)s %(levelname)s %(message)s',
+    filename='client_logs.log',
+    level=logging.INFO,
+    )
+
+# keyboard sends qwerty input
+def record_send_note():
+    while True:
+        note = getch()
+        if note == 'q':
+            s.close()
+            break
+        print "Sending " + note
+        s.send(note)
+    s.close()
+
+# keyboard plays qwerty input
 def record_play_note():
-	"""
-	play local sample (samples) and streams that audio back out to the local device audio output
-	"""
-
-	logger.info( currentThread().getName() + 'Start' )
-	global term
-
-	while True:
-		
-		key = getch()
-		
-		logger.info('pressed key is: %s'% key)
-
-		if key == 'q':
-			term = True
-			break
-
-		s.send(key)
-
-	logger.info( currentThread().getName() + 'Exit' )
-
+    while True:
+        note = getch()
+        if note == 'q':
+            break
+        elif note in ['c','d','e','f','g']:
+            notes[note].play()
+            print "Playing " + note
 
 def stream_incoming_odata():
-	
-	while True:
-		
-		if term == True:
-			break
+    while True:
+        odata = s.recv(CHUNK * CHANNELS * 2)
+        if odata > CHUNK:
+            while swmixer.gstream.get_write_available() < swmixer.gchunksize: time.sleep(0.001)
+            swmixer.gstream.write(odata, swmixer.gchunksize)
+            time.sleep(0.001)
+            #logger.info('receive audio stream %s'%len(odata))
 
-		rcv_key_event_odata = s.recv(CHUNK * CHANNELS * 2)
-		if rcv_key_event_odata:
-			logger.info( 'receive audio stream of %s'% len(rcv_key_event_odata) )
-			swmixer.gstream.write(rcv_key_event_odata)
+if __name__ == '__main__':
 
-	s.close()
+    # Clear screen
+    clear = os.system('clear')
 
 
-if __name__ == "__main__":
+    MODE = netmidi.select_mode()
+    if MODE in ('quit'):
+        quit()
+    #input_id = netmidi.select_midi_device()
 
-	HOST = ''
-	PORT = 12345
+    if MODE == 'local':
+        PATCH = netmidi.select_instrument()
+    
+        if PATCH is None:
+            PATCH = 'piano'
 
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	s.connect((HOST, PORT))
-	term = False
+        #WPATH = '/Users/iakom/Developer/Mixer/'
+        WPATH = '.'
+        INSTR=WPATH+'/wav/'+PATCH
 
-	keys = Thread(target=record_play_note)	
-	keys.start()
-	
-	stream = Thread(target=stream_incoming_odata)
-	stream.start()
-	stream.join()
+        # Set Sounds
+        c = swmixer.Sound(INSTR+'/C.wav')
+        d = swmixer.Sound(INSTR+'/D.wav')
+        e = swmixer.Sound(INSTR+'/E.wav')
+        f = swmixer.Sound(INSTR+'/F.wav')
+        g = swmixer.Sound(INSTR+'/G.wav')
+
+        notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
+
+    #capture_midi(input_id)
+
+    print "\nStarting client ..."
+    print "\nMODE == " + MODE
+
+    if MODE == 'local':
+
+        swmixer.start()
+        keys = Thread(target=record_play_note)	
+        keys.start()
+
+    elif MODE == 'remote':
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.connect((HOST, PORT))
+        except socket.error, msg:
+            print "Could not connect with server."
+            print msg
+            quit()
+
+        keys = Thread(target=record_send_note)	
+        keys.start()
+
+        stream = Thread(target=stream_incoming_odata)
+        stream.start()
+        stream.join()
+
+    elif MODE == 'hybrid':
+        print "HYBRID MODE. GOODBYE."
+
+    elif MODE == 'quit':
+        quit()
