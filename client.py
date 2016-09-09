@@ -15,10 +15,13 @@ import pygame
 import swmixer
 import socket
 import netmidi
+import pyaudio
 import sys
 import time
 import json
 import thread
+import threading
+from pyfiglet import Figlet
 from threading import Thread, currentThread
 from getch import getch, pause
 
@@ -63,20 +66,44 @@ def record_play_note():
             notes[note].play()
             print "Playing " + note
 
+def hybrid_fork_note():
+    while True:
+        note = getch()
+        if note == 'q':
+            break
+        elif note in ['c','d','e','f','g']:
+            notes[note].play()
+            s.send(note)
+            print "Playing & Sending " + note
+    s.close()
+
 def stream_incoming_odata():
     while True:
         odata = s.recv(CHUNK * CHANNELS * 2)
         if odata > CHUNK:
-            while swmixer.gstream.get_write_available() < swmixer.gchunksize: time.sleep(0.001)
-            swmixer.gstream.write(odata, swmixer.gchunksize)
+            pstream.write(odata)
+            #gdata = hash(odata)
             time.sleep(0.001)
-            #logger.info('receive audio stream %s'%len(odata))
+            #logger.info('receive audio stream %s'% gdata)
+
+def splash():
+    os.system('clear')
+    f = Figlet(font='standard')
+    print "\n\n\n"
+    print f.renderText('-NETAUDIO-'),
+    print "\t\t(c) 2016 Omnibot Holdings LLC"
+    print "\n\n\n\n"
+    time.sleep(1.0)
 
 if __name__ == '__main__':
 
+
+    # Render splash
+
+    splash()
+
     # Clear screen
     clear = os.system('clear')
-
 
     MODE = netmidi.select_mode()
     if MODE in ('quit'):
@@ -102,18 +129,20 @@ if __name__ == '__main__':
 
         notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
 
-    #capture_midi(input_id)
-
-    print "\nStarting client ..."
-    print "\nMODE == " + MODE
-
-    if MODE == 'local':
-
         swmixer.start()
-        keys = Thread(target=record_play_note)	
+        keys = Thread(target=record_play_note)  
         keys.start()
 
+
     elif MODE == 'remote':
+
+        p = pyaudio.PyAudio()
+
+        pstream = p.open(
+            format = pyaudio.paInt16,
+            channels = 2,
+            rate = 44100,
+            output = True)
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -130,8 +159,56 @@ if __name__ == '__main__':
         stream.start()
         stream.join()
 
-    elif MODE == 'hybrid':
-        print "HYBRID MODE. GOODBYE."
 
+    elif MODE == 'hybrid':
+
+        #### LOCAL PART
+
+        PATCH = netmidi.select_instrument()
+    
+        if PATCH is None:
+            PATCH = 'piano'
+
+        #WPATH = '/Users/iakom/Developer/Mixer/'
+        WPATH = '.'
+        INSTR=WPATH+'/wav/'+PATCH
+
+        # Set Sounds
+        c = swmixer.Sound(INSTR+'/C.wav')
+        d = swmixer.Sound(INSTR+'/D.wav')
+        e = swmixer.Sound(INSTR+'/E.wav')
+        f = swmixer.Sound(INSTR+'/F.wav')
+        g = swmixer.Sound(INSTR+'/G.wav')
+
+        notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
+
+        swmixer.start()
+
+        ######## REMOTE PART
+
+        p = pyaudio.PyAudio()
+
+        pstream = p.open(
+            format = pyaudio.paInt16,
+            channels = 2,
+            rate = 44100,
+            output = True)
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.connect((HOST, PORT))
+        except socket.error, msg:
+            print "Could not connect with server."
+            print msg
+            quit()
+
+        keys = Thread(target=hybrid_fork_note)  
+        keys.start()
+
+        stream = Thread(target=stream_incoming_odata)
+        stream.start()
+        stream.join()
+
+        
     elif MODE == 'quit':
         quit()

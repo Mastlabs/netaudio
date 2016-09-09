@@ -53,9 +53,10 @@ def runmixer_and_stream():
     while True:
 
         odata = netmixer.tick()
+        gdata = hash(odata)
         time.sleep(0.001)
         conn.send(odata)
-        logger.info('sending %s audio frames'%(len(odata)))
+        #logger.info('sending %s audio frames'% gdata)
 
 if __name__ == "__main__":
 

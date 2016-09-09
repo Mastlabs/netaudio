@@ -16,6 +16,7 @@ from pygame.locals import *
 import os
 
 # INITIALIZE
+'''
 pygame.init()
 pygame.midi.init()
 pygame.fastevent.init()
@@ -23,6 +24,7 @@ event_get = pygame.fastevent.get
 event_post = pygame.fastevent.post
 midi_count = pygame.midi.get_count()
 input_id = 0
+'''
 hline = "--------------------------------------"
 instruments = {'0':'strings', 
                 '1':'brass',
