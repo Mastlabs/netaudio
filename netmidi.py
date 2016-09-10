@@ -99,6 +99,8 @@ def select_mode():
     print hline
 
     key = raw_input("\nSelect your mode[#]: ")
+    if key == 'q':
+        key = key.upper()
     return modes[str(key)]
 
 

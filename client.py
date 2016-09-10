@@ -106,7 +106,7 @@ if __name__ == '__main__':
     clear = os.system('clear')
 
     MODE = netmidi.select_mode()
-    if MODE in ('quit'):
+    if MODE in 'Qquit':
         quit()
     #input_id = netmidi.select_midi_device()
 
