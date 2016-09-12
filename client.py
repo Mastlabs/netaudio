@@ -14,10 +14,12 @@ import logging
 import pygame
 import swmixer
 import socket
+import struct
 import netmidi
 import pyaudio
 import sys
 import time
+import datetime
 import json
 import thread
 import threading
@@ -47,13 +49,16 @@ logging.basicConfig(
 
 # keyboard sends qwerty input
 def record_send_note():
+    tag = 0 
     while True:
+        tag += 1
         note = getch()
         if note == 'q':
             s.close()
             break
-        print "Sending " + note
-        s.send(note)
+        # print "Sending %s at %s"%(note, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        key_event = struct.pack('si', note, tag)
+        s.send(key_event)
     s.close()
 
 # keyboard plays qwerty input

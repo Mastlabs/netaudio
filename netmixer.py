@@ -18,6 +18,8 @@ gsamplewidth = 2
 gmixer_srcs = []
 gid = 1
 glock = thread.allocate_lock()
+gtick = 0
+note = None
 
 class _SoundSourceData:
     def __init__(self, data, loops):
@@ -295,7 +297,7 @@ class Sound:
         """
         return len(self.data)
 
-    def play(self, volume=1.0, offset=0, fadein=0, envelope=None, loops=0):
+    def play(self, volume=1.0, offset=0, fadein=0, envelope=None, loops=0, gnote=None):
         """Play the sound
 
         Keyword arguments:
@@ -307,6 +309,10 @@ class Sound:
         loops - how many times to play the sound (-1 is infinite)
 
         """
+        global note
+        if gnote:
+            note = gnote
+
         if envelope != None:
             env = envelope
         else:
@@ -467,6 +473,7 @@ def tick():
     """
     global ginit
     global gmixer_srcs
+    global note
     rmlist = []
     if not ginit:
         return
@@ -475,6 +482,7 @@ def tick():
     if glock is None: return # this can happen if main thread quit first
     glock.acquire()
     for sndevt in gmixer_srcs:
+        print note
         s = sndevt._get_samples(sz)
         if s is not None:
             b += s
@@ -486,7 +494,7 @@ def tick():
 
     glock.release()
     odata = (b.astype(numpy.int16)).tostring()
-    return(odata)
+    return (odata)
     
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer

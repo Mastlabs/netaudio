@@ -13,6 +13,7 @@ import time
 import logging
 import netmixer
 import datetime
+import struct
 import socket
 from getch import getch, pause
 from Queue import Queue
@@ -30,8 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger('server')
 netmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
 
-WPATH = '/Users/iakom/Developer/Mixer/'
-#WPATH = os.getcwd()
+WPATH = os.getcwd()
 #WPATH = os.path.dirname(os.path.realpath(__file__))
 
 #INSTR=WPATH+'/wav/piano'
@@ -53,7 +53,6 @@ def runmixer_and_stream():
     while True:
 
         odata = netmixer.tick()
-        gdata = hash(odata)
         time.sleep(0.001)
         conn.send(odata)
         #logger.info('sending %s audio frames'% gdata)
@@ -75,13 +74,19 @@ if __name__ == "__main__":
     Ts = Thread(target = runmixer_and_stream)
     Ts.start()
 
-    logger.info('Server listening....')
+    # logger.info('Server listening....')
 
     os.system('clear')
     print "\nServer started..."
 
     while True:
-        note = conn.recv(CHUNK * CHANNELS * 2)
+        unpacker = struct.Struct('si')
+        rcv_note = conn.recv(unpacker.size)
+        note, tag = unpacker.unpack(rcv_note)
+        print 'recv pack data', note, tag
         if note in ['c','d','e','f','g']:
-            notes[note].play()
+            notes[note].play(gnote=note)
             print "Playing " + note
+
+
+
