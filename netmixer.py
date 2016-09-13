@@ -5,6 +5,7 @@ Copyright 2016, Christian Hessler
 """
 
 import time
+import datetime
 import wave
 import thread
 import numpy
@@ -309,15 +310,18 @@ class Sound:
         envelope - a list of [offset, volume] pairs defining
                    a linear volume envelope
         loops - how many times to play the sound (-1 is infinite)
+        gnote - the note played
+        tag - the note sequence ID
 
         """
         global note
-        global gtick
         global tag
+        global gtick
         gtick = 0
         if gnote:
             note = gnote
             tag = frame_tag
+            print "[MIXX] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 
         if envelope != None:
             env = envelope
@@ -506,8 +510,8 @@ def tick():
 
     glock.release()
     odata = (b.astype(numpy.int16)).tostring()
-    
-    return (odata, frame_occur, note, c)
+    #return (odata, frame_occur, note, c)
+    return (odata)
     
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer

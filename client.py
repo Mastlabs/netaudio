@@ -15,7 +15,6 @@ import pygame
 import swmixer
 import socket
 import struct
-import cPickle
 import netmidi
 import pyaudio
 import sys
@@ -60,7 +59,7 @@ def record_send_note():
             s.close()
             break
         
-        print "Sending %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+        print "[REMO] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
         key_event = struct.pack('si', note, tag)
         s.send(key_event)
     s.close()
