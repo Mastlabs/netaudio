@@ -473,7 +473,7 @@ def tick():
     """
     global ginit
     global gmixer_srcs
-    global note
+    frame_occur = False
     rmlist = []
     if not ginit:
         return
@@ -486,6 +486,7 @@ def tick():
         s = sndevt._get_samples(sz)
         if s is not None:
             b += s
+            frame_occur = True
         if sndevt.done:
             rmlist.append(sndevt)
     b = b.clip(-32767.0, 32767.0)
@@ -494,7 +495,7 @@ def tick():
 
     glock.release()
     odata = (b.astype(numpy.int16)).tostring()
-    return (odata)
+    return (odata, frame_occur)
     
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer

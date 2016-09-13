@@ -51,10 +51,10 @@ notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
 
 def runmixer_and_stream():  	
     while True:
-
-        odata = netmixer.tick()
+        odata, frame_occur = netmixer.tick()
         time.sleep(0.001)
-        conn.send(odata)
+        if frame_occur:
+            conn.send(odata)
         #logger.info('sending %s audio frames'% gdata)
 
 if __name__ == "__main__":
