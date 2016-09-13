@@ -15,6 +15,7 @@ import netmixer
 import datetime
 import struct
 import socket
+import numpy as np
 from getch import getch, pause
 from Queue import Queue
 from threading import Thread, currentThread
@@ -51,10 +52,14 @@ notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
 
 def runmixer_and_stream():  	
     while True:
-        odata, frame_occur = netmixer.tick()
+        odata, frame_occur, note, tag = netmixer.tick()
         time.sleep(0.001)
-        if frame_occur:
-            conn.send(odata)
+        if frame_occur:         # fetch only sound event
+            try:
+                conn.send(odata)
+            except socket.error, e:
+                break
+            
         #logger.info('sending %s audio frames'% gdata)
 
 if __name__ == "__main__":
@@ -81,12 +86,15 @@ if __name__ == "__main__":
 
     while True:
         unpacker = struct.Struct('si')
-        rcv_note = conn.recv(unpacker.size)
-        note, tag = unpacker.unpack(rcv_note)
-        print 'recv pack data', note, tag
-        if note in ['c','d','e','f','g']:
-            notes[note].play(gnote=note)
-            print "Playing " + note
+        try:
+            rcv_note = conn.recv(unpacker.size)
+            if len(rcv_note) > 0:
+                note, tag = unpacker.unpack(rcv_note)
+                if note in ['c','d','e','f','g']:
+                    notes[note].play(gnote=note, frame_tag=tag)
+                    print "Playing " + note
 
-
-
+        except socket.error, e:
+            break
+        
+        

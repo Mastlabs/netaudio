@@ -15,6 +15,7 @@ import pygame
 import swmixer
 import socket
 import struct
+import cPickle
 import netmidi
 import pyaudio
 import sys
@@ -26,6 +27,8 @@ import threading
 from pyfiglet import Figlet
 from threading import Thread, currentThread
 from getch import getch, pause
+import base64
+import ast
 
 CHUNK = 64
 CHANNELS = 2
@@ -56,7 +59,8 @@ def record_send_note():
         if note == 'q':
             s.close()
             break
-        # print "Sending %s at %s"%(note, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        
+        print "Sending %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
         key_event = struct.pack('si', note, tag)
         s.send(key_event)
     s.close()
@@ -82,12 +86,16 @@ def hybrid_fork_note():
             print "Playing & Sending " + note
     s.close()
 
-def stream_incoming_odata():
+def stream_incoming_odata(): 
     while True:
-        odata = s.recv(CHUNK * CHANNELS * 2)
+        try:
+            odata = s.recv(CHUNK * CHANNELS * 2)
+        except socket.error, e:
+            s.close()
+            break
+        
         if odata > CHUNK:
             pstream.write(odata)
-            #gdata = hash(odata)
             time.sleep(0.001)
             #logger.info('receive audio stream %s'% gdata)
 
