@@ -321,7 +321,7 @@ class Sound:
         if gnote:
             note = gnote
             tag = frame_tag
-            print "MIXX PLAY %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+            #print "MIXX PLAY %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 
         if envelope != None:
             env = envelope
