@@ -321,7 +321,7 @@ class Sound:
         if gnote:
             note = gnote
             tag = frame_tag
-            print "[MIXX] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+            print "MIXX PLAY %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 
         if envelope != None:
             env = envelope
@@ -510,8 +510,7 @@ def tick():
 
     glock.release()
     odata = (b.astype(numpy.int16)).tostring()
-    #return (odata, frame_occur, note, c)
-    return (odata)
+    return (odata, frame_occur, note, c)
     
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer

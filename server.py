@@ -50,18 +50,22 @@ g = netmixer.Sound(INSTR+'/G.wav')
 
 notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
 
-def runmixer_and_stream():  	
+def runmixer_and_stream():
 	while True:
 		odata, frame_occur, note, tag = netmixer.tick()
 		time.sleep(0.001)
 		if frame_occur:         # fetch only sound event
 			try:
+				if tag:
+					print 'before modsend data', len(odata)
+					odata = odata+'net{}:{}mixer'.format(note,tag)
+					print 'after modsend data', len(odata)
+					print 'Tick ODATA %s with tag #%d at %s'%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 				conn.send(odata)
 			except socket.error, e:
 				break
-
-		msg = "[ODAT] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
-		logger.info(msg)
+			
+			# logger.info('[ODAT] %s with tag #%d at %s'%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')))
 
 if __name__ == "__main__":
 
@@ -92,7 +96,7 @@ if __name__ == "__main__":
 			if len(rcv_note) > 0:
 				note, tag = unpacker.unpack(rcv_note)
 				if note in ['c','d','e','f','g']:
-					print "[RECV] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+					print "RECV GETCH %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 					notes[note].play(gnote=note, frame_tag=tag)
 					#print "Playing " + note + str(tag)
 

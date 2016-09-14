@@ -23,6 +23,7 @@ import datetime
 import json
 import thread
 import threading
+import numpy as np
 from pyfiglet import Figlet
 from threading import Thread, currentThread
 from getch import getch, pause
@@ -36,6 +37,7 @@ MODE = 'local'
 # setup socket
 HOST = ''
 PORT = 12345
+term = False
 
 logger = logging.getLogger('client')
 frames = []
@@ -51,15 +53,17 @@ logging.basicConfig(
 
 # keyboard sends qwerty input
 def record_send_note():
+    global term
     tag = 0 
     while True:
         tag += 1
         note = getch()
         if note == 'q':
             s.close()
+            term = True
             break
         
-        print "[REMO] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+        print "[GETCH] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
         key_event = struct.pack('si', note, tag)
         s.send(key_event)
     s.close()
@@ -87,8 +91,23 @@ def hybrid_fork_note():
 
 def stream_incoming_odata(): 
     while True:
+        if term:
+            break
         try:
-            odata = s.recv(CHUNK * CHANNELS * 2)
+            odata = s.recv(300)
+            
+            if 'net' in odata or 'mixer' in odata:
+                print 'rcv odata' , len(odata)
+                try:
+                    extra_str = odata[odata.find('net'):odata.find('mixer')]
+                    note, tag = tuple(extra_str.split(':'))
+                    print "STREAM %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+                except Exception, e:
+                    print e
+                
+                odata = odata.replace(extra_str+'mixer', '')
+                print 'after remove mods odata', len(odata)
+
         except socket.error, e:
             s.close()
             break
