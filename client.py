@@ -35,7 +35,8 @@ CHANNELS = 2
 MODE = 'local'
 
 # setup socket
-HOST = ''
+#HOST = ''
+HOST = '45.79.175.75'
 PORT = 12345
 term = False
 
@@ -63,7 +64,7 @@ def record_send_note():
 			term = True
 			break
 		
-		print "[GTCH] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+		print "[GTCH] %s with tag #%d at %s\n"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 		key_event = struct.pack('si', note, tag)
 		s.send(key_event)
 	s.close()
