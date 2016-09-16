@@ -23,7 +23,7 @@ from threading import Thread, currentThread
 
 CHUNK = 64
 CHANNELS = 2
-DEBUG = False
+DEBUG = True
 
 logging.basicConfig(
 	format='%(asctime)s %(levelname)s %(message)s',
@@ -62,8 +62,8 @@ def runmixer_and_stream():
 						odata = odata+'data----{}:{}----data'.format(note,tag)
 						print '[TICK] %s with tag #%d at %s'%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 				
-				encode = base64.b64encode(odata) 		# encode binary buffer to b64
-				conn.send(encode)
+				# encode = base64.b64encode(odata) 		# encode binary buffer to b64
+				conn.send(odata)
 
 			except socket.error, e:
 				break
@@ -108,8 +108,8 @@ if __name__ == "__main__":
 						notes[note].play(gnote=note, frame_tag=tag, debug=DEBUG)
 						
 					elif note == 'q': 		# Here we disconnect client connection from server and send quit signal to client 
-						msg = base64.b64encode('q')
-						conn.send(msg)
+						
+						conn.send(note)
 						s.shutdown(2)
 						s.close()
 						
