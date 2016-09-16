@@ -9,6 +9,9 @@
 # plays back the remote audio in real time.
 ###########################################
 import os
+import sys
+import time
+import base64
 import datetime
 import logging
 import pygame
@@ -17,8 +20,6 @@ import socket
 import struct
 import netmidi
 import pyaudio
-import sys
-import time
 import datetime
 import json
 import thread
@@ -27,22 +28,17 @@ import numpy as np
 from pyfiglet import Figlet
 from threading import Thread, currentThread
 from getch import getch, pause
-import base64
-import ast
 
 CHUNK = 64
 CHANNELS = 2
 MODE = 'local'
+DEBUG = False
 
 # setup socket
-#HOST = ''
-HOST = '45.79.175.75'
+HOST = '0.0.0.0'
+# HOST = '45.79.175.75'
 PORT = 12345
-term = False
-
 logger = logging.getLogger('client')
-frames = []
-
 swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
 
 # Logger
@@ -54,21 +50,20 @@ logging.basicConfig(
 
 # keyboard sends qwerty input
 def record_send_note():
-	global term
 	tag = 0 
 	while True:
 		tag += 1
 		note = getch()
-		if note == 'q':
-			s.close()
-			term = True
-			break
 		
-		print "[GTCH] %s with tag #%d at %s\n"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+		if DEBUG and note != 'q':
+			print "[GTCH] %s with tag #%d at %s\n"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+		
 		key_event = struct.pack('si', note, tag)
 		s.send(key_event)
-	s.close()
-
+		
+		if note == 'q': 		# Here we send quit command to server and break record thread
+			break	
+		
 # keyboard plays qwerty input
 def record_play_note():
 	while True:
@@ -77,7 +72,8 @@ def record_play_note():
 			break
 		elif note in ['c','d','e','f','g']:
 			notes[note].play()
-			#print "Playing " + note
+			if DEBUG:
+				print "Playing " + note
 
 def hybrid_fork_note():
 	while True:
@@ -87,38 +83,38 @@ def hybrid_fork_note():
 		elif note in ['c','d','e','f','g']:
 			notes[note].play()
 			s.send(note)
-			#print "Playing & Sending " + note
+			if DEBUG:
+				print "Playing & Sending " + note
+	
 	s.close()
 
-def stream_incoming_odata(): 
+def stream_incoming_odata():
+	
 	while True:
-		if term:
-			break
-		try:
-			#odata = s.recv(CHUNK * CHANNELS * 2)
-			odata = s.recv(300)
-			
-			if 'net' in odata or 'mixer' in odata:
-				#print 'rcv odata' , len(odata)
-				try:
-					extra_str = odata[odata.find('net'):odata.find('mixer')]
-					note, tag = tuple(extra_str.split(':'))
-					print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
-				except Exception, e:
-					print e
-				
-				odata = odata.replace(extra_str+'mixer', '')
-				#print 'after remove mods odata', len(odata)
-
-		except socket.error, e:
+		
+		data = s.recv(CHUNK * CHANNELS * 4)
+		odata = base64.b64decode(data) 		# decode binary buffer to b64
+		
+		if odata == 'q': 		 # close stream thread 
 			s.close()
 			break
-		
-		if odata > CHUNK:
-			pstream.write(odata)
-			time.sleep(0.001)
-			#logger.info('receive audio stream %s'% gdata)
 
+		if DEBUG:
+			if 'data----' in odata:
+				try:
+					extra_str = odata[odata.find('data----'):odata.find('----data')]
+					note, tag = tuple(extra_str.split(':'))
+					print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+				
+				except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
+					print e
+				
+				odata = odata.replace(extra_str+'----data', '')
+				
+		if odata:
+			pstream.write(odata)
+
+	
 def splash():
 	os.system('clear')
 	f = Figlet(font='standard')
@@ -130,17 +126,14 @@ def splash():
 
 if __name__ == '__main__':
 
+	splash()		# Render splash
 
-	# Render splash
-
-	splash()
-
-	# Clear screen
-	clear = os.system('clear')
+	clear = os.system('clear')		# Clear screen
 
 	MODE = netmidi.select_mode()
 	if MODE in 'Qquit':
 		quit()
+
 	#input_id = netmidi.select_midi_device()
 
 	if MODE == 'local':
@@ -179,10 +172,12 @@ if __name__ == '__main__':
 
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
-			s.connect((HOST, PORT))
+			connect_res = s.connect_ex((HOST, PORT)) 		# conenct_ex return integer response, if response is greater than 0 there must be some error
 		except socket.error, msg:
-			print "Could not connect with server."
-			print msg
+			if DEBUG:
+				print "Could not connect with server."
+				print msg
+
 			quit()
 
 		keys = Thread(target=record_send_note)	
@@ -231,8 +226,10 @@ if __name__ == '__main__':
 		try:
 			s.connect((HOST, PORT))
 		except socket.error, msg:
-			print "Could not connect with server."
-			print msg
+			if DEBUG:
+				print "Could not connect with server."
+				print msg
+
 			quit()
 
 		keys = Thread(target=hybrid_fork_note)  
@@ -245,3 +242,7 @@ if __name__ == '__main__':
 		
 	elif MODE == 'quit':
 		quit()
+
+	else:
+		print 'Unknown selection'
+

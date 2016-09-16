@@ -300,7 +300,7 @@ class Sound:
         """
         return len(self.data)
 
-    def play(self, volume=1.0, offset=0, fadein=0, envelope=None, loops=0, gnote=None, frame_tag=None):
+    def play(self, volume=1.0, offset=0, fadein=0, envelope=None, loops=0, gnote=None, frame_tag=None, debug=False):
         """Play the sound
 
         Keyword arguments:
@@ -321,7 +321,8 @@ class Sound:
         if gnote:
             note = gnote
             tag = frame_tag
-            #print "MIXX PLAY %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+            if debug:
+                print "MIXX PLAY %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 
         if envelope != None:
             env = envelope
