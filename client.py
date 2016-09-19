@@ -36,8 +36,8 @@ MODE = 'local'
 DEBUG = True
 
 # setup socket
-HOST = '0.0.0.0'
-# HOST = '45.79.175.75'
+# HOST = '0.0.0.0'
+HOST = '45.79.175.75'
 PORT = 12345
 logger = logging.getLogger('client')
 swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
@@ -59,12 +59,13 @@ def record_send_note():
 		if DEBUG and note != 'q':
 			print "[GTCH] %s with tag #%d at %s\n"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 		
-		key_event = struct.pack('si', note, tag)
-		s.send(key_event)
-		
 		if note == 'q': 		# Here we send quit command to server and break record thread
 			print 'pressed note', note
 			break	
+		
+		key_event = struct.pack('si', note, tag)
+		s.send(key_event)
+		
 		
 # keyboard plays qwerty input
 def record_play_note():
@@ -90,34 +91,39 @@ def hybrid_fork_note():
 	
 	s.close()
 
-def stream_incoming_odata():
+def stream_incoming_odata(send_note_thread):
 	
-	while True:
+	try:
+		while True:
 		
-		#data = s.recv(CHUNK * CHANNELS * 4)
-		data = s.recv(CHUNK * CHANNELS * 2)
-		odata = base64.b64decode(data) 		# decode binary buffer to b64
+			if not send_note_thread.isAlive():
+				'break it'
+				s.close()
+				break
 
-		if odata == 'q': 		 # close stream thread 
-			print 'recived odata is', odata
-			s.close()
-			break
+			#data = s.recv(CHUNK * CHANNELS * 4)
+			data = s.recv(CHUNK * CHANNELS * 2)
+			odata = base64.b64decode(data) 		# decode binary buffer to b64
+			
+			if DEBUG:
+				if 'data----' in odata:
+					try:
+						extra_str = odata[odata.find('data----'):odata.find('----data')]
+						note, tag = tuple(extra_str.split(':'))
+						print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+					
+					except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
+						print e
+					
+					odata = odata.replace(extra_str+'----data', '')
+					
+			if odata:
+				pstream.write(odata)
 
+	except socket.error, e:
 		if DEBUG:
-			if 'data----' in odata:
-				try:
-					extra_str = odata[odata.find('data----'):odata.find('----data')]
-					note, tag = tuple(extra_str.split(':'))
-					print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
-				
-				except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
-					print e
-				
-				odata = odata.replace(extra_str+'----data', '')
-				
-		if odata:
-			pstream.write(odata)
-
+			print e
+		return
 	
 def splash():
 	os.system('clear')
@@ -187,7 +193,7 @@ if __name__ == '__main__':
 		keys = Thread(target=record_send_note)	
 		keys.start()
 
-		stream = Thread(target=stream_incoming_odata)
+		stream = Thread(target=stream_incoming_odata, args=(keys,))
 		stream.start()
 		stream.join()
 
@@ -239,7 +245,7 @@ if __name__ == '__main__':
 		keys = Thread(target=hybrid_fork_note)  
 		keys.start()
 
-		stream = Thread(target=stream_incoming_odata)
+		stream = Thread(target=stream_incoming_odata, args=(keys, ))
 		stream.start()
 		stream.join()
 
