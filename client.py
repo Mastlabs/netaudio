@@ -32,7 +32,8 @@ from getch import getch, pause
 CHUNK = 64
 CHANNELS = 2
 MODE = 'local'
-DEBUG = True
+DEBUG = False
+#DEBUG = True
 
 # setup socket
 HOST = '0.0.0.0'
@@ -92,8 +93,9 @@ def stream_incoming_odata():
 	
 	while True:
 		
-		odata = s.recv(CHUNK * CHANNELS * 4)
-		# odata = base64.b64decode(data) 		# decode binary buffer to b64
+		#data = s.recv(CHUNK * CHANNELS * 4)
+		data = s.recv(CHUNK * CHANNELS * 2)
+		odata = base64.b64decode(data) 		# decode binary buffer to b64
 
 		if odata == 'q': 		 # close stream thread 
 			s.close()
