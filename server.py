@@ -34,12 +34,15 @@ logging.basicConfig(
 
 logger = logging.getLogger('server')
 netmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
-WPATH = os.getcwd()
-#INSTR=WPATH+'/wav/piano'
-#INSTR=WPATH+'/wav/strings'
-#INSTR=WPATH+'/wav/perc'
-INSTR=WPATH+'/wav/brass'
-#INSTR=WPATH+'/wav/glock'
+
+try:
+	instrument = sys.argv[1]
+except IndexError, e:
+	print 'Argument missing: Usage - python server.py piano'
+	print 'arguments: [piano, strings, perc, brass, glock]'
+	sys.exit(1)
+
+INSTR = os.getcwd()+'/wav/'+instrument
 
 # Set Sounds
 c = netmixer.Sound(INSTR+'/C.wav')
