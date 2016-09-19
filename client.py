@@ -14,14 +14,12 @@ import time
 import base64
 import datetime
 import logging
-import pygame
 import swmixer
 import socket
 import struct
 import netmidi
 import pyaudio
 import datetime
-import json
 import thread
 import threading
 import numpy as np
