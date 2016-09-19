@@ -27,7 +27,8 @@ MODE = 'local'
 OFF = 100
 
 # setup socket
-HOST = ''
+#HOST = ''
+HOST = '45.79.175.75'
 PORT = 12345
 
 def play_note(note):
@@ -36,7 +37,7 @@ def play_note(note):
 		frame = note.readframes(CHUNK)
 		hashd = hash(frame) 
 		if hashd != 0:
-			#print "STR "+str(i)+":"+str(hashd)
+			print "STR "+str(i)+":"+str(hashd)
 			lstream.write(frame)
 
 def send_notes():
