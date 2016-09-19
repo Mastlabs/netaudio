@@ -123,7 +123,7 @@ def run_server(HOST, PORT):
 		s.close()
 		stop_stream = True
 
-		if e.errno in [54,56,57]: 		# If connection reset (ECONNRESET) or not connected (ENOTCONN) exception occurred
+		if e.errno in [socket.errno.ECONNRESET, socket.errno.ENOTCONN]: 		# If connection reset (ECONNRESET) or not connected (ENOTCONN) exception occurred
 			if DEBUG:
 				print 'Server re-initiated'
 
