@@ -59,13 +59,12 @@ def record_send_note():
 		if DEBUG and note != 'q':
 			print "[GTCH] %s with tag #%d at %s\n"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 		
-		if note == 'q': 		# Here we send quit command to server and break record thread
-			print 'pressed note', note
-			break	
-		
 		key_event = struct.pack('si', note, tag)
 		s.send(key_event)
 		
+		if note == 'q': 		# Here we send quit command to server and break record thread
+			print 'pressed note', note
+			break	
 		
 # keyboard plays qwerty input
 def record_play_note():
@@ -93,37 +92,31 @@ def hybrid_fork_note():
 
 def stream_incoming_odata(send_note_thread):
 	
-	try:
-		while True:
+	while True:
+	
+		if not send_note_thread.isAlive():
+			s.close()
+			break
+
+		#data = s.recv(CHUNK * CHANNELS * 4)
+		data = s.recv(CHUNK * CHANNELS * 2)
+		odata = base64.b64decode(data) 		# decode binary buffer to b64
 		
-			if not send_note_thread.isAlive():
-				'break it'
-				s.close()
-				break
-
-			#data = s.recv(CHUNK * CHANNELS * 4)
-			data = s.recv(CHUNK * CHANNELS * 2)
-			odata = base64.b64decode(data) 		# decode binary buffer to b64
-			
-			if DEBUG:
-				if 'data----' in odata:
-					try:
-						extra_str = odata[odata.find('data----'):odata.find('----data')]
-						note, tag = tuple(extra_str.split(':'))
-						print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
-					
-					except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
-						print e
-					
-					odata = odata.replace(extra_str+'----data', '')
-					
-			if odata:
-				pstream.write(odata)
-
-	except socket.error, e:
 		if DEBUG:
-			print e
-		return
+			if 'data----' in odata:
+				try:
+					extra_str = odata[odata.find('data----'):odata.find('----data')]
+					note, tag = tuple(extra_str.split(':'))
+					print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+				
+				except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
+					print e
+				
+				odata = odata.replace(extra_str+'----data', '')
+				
+		if odata:
+			pstream.write(odata)
+
 	
 def splash():
 	os.system('clear')

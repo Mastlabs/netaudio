@@ -91,6 +91,7 @@ def run_server(HOST, PORT):
 	Ts.start()
 	os.system('clear')
 	
+	print "New Connection from %s:%d"%(addr[0], addr[1])
 	print "\nServer started...To exit gracefully press ctrl + c" 		# Can we display this also in debug mode ?
 
 	try:
@@ -106,6 +107,9 @@ def run_server(HOST, PORT):
 					
 					notes[note].play(gnote=note, frame_tag=tag, debug=DEBUG)
 				
+				elif note == 'q': 		# q key note is only intended for quit purpose only, if used then we raise connection reset error
+					raise socket.error(socket.errno.ECONNRESET, 'Connection Reset')
+
 				else:
 					if DEBUG:
 						print 'Invalid note'
