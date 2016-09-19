@@ -32,8 +32,8 @@ from getch import getch, pause
 CHUNK = 64
 CHANNELS = 2
 MODE = 'local'
-DEBUG = False
-#DEBUG = True
+# DEBUG = False
+DEBUG = True
 
 # setup socket
 HOST = '0.0.0.0'
@@ -63,6 +63,7 @@ def record_send_note():
 		s.send(key_event)
 		
 		if note == 'q': 		# Here we send quit command to server and break record thread
+			print 'pressed note', note
 			break	
 		
 # keyboard plays qwerty input
@@ -98,6 +99,7 @@ def stream_incoming_odata():
 		odata = base64.b64decode(data) 		# decode binary buffer to b64
 
 		if odata == 'q': 		 # close stream thread 
+			print 'recived odata is', odata
 			s.close()
 			break
 

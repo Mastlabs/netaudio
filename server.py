@@ -23,8 +23,8 @@ from threading import Thread, currentThread
 
 CHUNK = 64
 CHANNELS = 2
-DEBUG = False
-#DEBUG = True
+# DEBUG = False
+DEBUG = True
 
 logging.basicConfig(
 	format='%(asctime)s %(levelname)s %(message)s',
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 	stop_stream = False
 	try:
 
-		global conn
+		# global conn
 		
 		HOST = '0.0.0.0'
 		PORT = 12345
@@ -109,22 +109,12 @@ if __name__ == "__main__":
 						notes[note].play(gnote=note, frame_tag=tag, debug=DEBUG)
 						
 					elif note == 'q': 		# Here we disconnect client connection from server and send quit signal to client 
-						
 						conn.send(note)
-						s.shutdown(2)
-						s.close()
 						
 			except socket.error, e:
-
-				s.close()
 				if e.errno in [56,57]: 		# If connection reset (ECONNRESET) or not connected (ENOTCONN) exception occurred
 					if DEBUG:
 						print 'Server re-initiated'
-					s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-					s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-					s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-					s.bind((HOST, PORT))
-					s.listen(5)
 					conn, addr = s.accept()
 
 	except KeyboardInterrupt:
