@@ -20,16 +20,30 @@ import threading
 from threading import Thread, currentThread
 from getch import getch, pause
 
-CHUNK = 64
-CHANNELS = 2
-MODE = 'local'
-OFF = 150
-oframes = []
+def set_debug(val):
+	global DEBUG
+	if val == False:
+		DEBUG = False
+	elif val == True:
+		DEBUG = True
 
-# setup socket
-HOST = ''
-#HOST = '45.79.175.75'
-PORT = 12345
+def set_offset(val):
+	global OFF
+	OFF = val
+
+def load_instruments(patch):
+	global c,d,e,f,g,notes
+
+	WPATH = os.getcwd()
+	INSTR = WPATH+'/wav/'+patch
+
+	c = wave.open(INSTR+'/C.wav', 'r')
+	d = wave.open(INSTR+'/D.wav', 'r')
+	e = wave.open(INSTR+'/E.wav', 'r')
+	f = wave.open(INSTR+'/F.wav', 'r')
+	g = wave.open(INSTR+'/G.wav', 'r')
+	
+	notes = {'c':c, 'd':d, 'e':e, 'f':f, 'g':g}
 
 def play_note(note):
 	note.rewind()
@@ -58,7 +72,6 @@ def send_notes():
 		if note in 'Qq':
 			quit()
 		elif note in ['c','d','e','f','g']:
-			#print "Playing & Sending " + note
 			s.send(note)
 			play_note(notes[note])
 
@@ -72,29 +85,36 @@ def stream_audio():
 
 if __name__ == '__main__':
 
+	CHUNK = 64
+	CHANNELS = 2
+	OFF = 0
+	OID = 1
+	DEBUG = False
+	oframes = []
+
+	c = None
+	d = None
+	e = None
+	f = None
+	g = None
+
+	notes = None
+
+	# setup socket
+	HOST = ''
+	#HOST = '45.79.175.75'
+	PORT = 12345
+
 	# Clear screen
 	clear = os.system('clear')
 
-	MODE = 'remote'
-	PATCH = 'brass'
-
-	WPATH = '.'
-	INSTR=WPATH+'/wav/'+PATCH
-
-	c = wave.open(INSTR+'/C.wav', 'r')
-	d = wave.open(INSTR+'/D.wav', 'r')
-	e = wave.open(INSTR+'/E.wav', 'r')
-	f = wave.open(INSTR+'/F.wav', 'r')
-	g = wave.open(INSTR+'/G.wav', 'r')
-
-	notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
-
+	# Initialize
 	p = pyaudio.PyAudio()
+	load_instruments('brass')
+	set_offset(150)
 
 	#for i in range(p.get_device_count()):
 	#	print p.get_device_info_by_index(i)
-
-	OID = 1
 
 	rstream = p.open(
 		format = pyaudio.paInt16,

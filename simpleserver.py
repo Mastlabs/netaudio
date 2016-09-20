@@ -16,16 +16,30 @@ import socket
 from Queue import Queue
 from threading import Thread, currentThread
 
-CHUNK = 64
-CHANNELS = 2
-OFF = 150
+def set_debug(val):
+	global DEBUG
+	if val == False:
+		DEBUG = False
+	elif val == True:
+		DEBUG = True
 
-WPATH = os.getcwd()
-#INSTR=WPATH+'/wav/piano'
-#NSTR=WPATH+'/wav/strings'
-#INSTR=WPATH+'/wav/perc'
-INSTR=WPATH+'/wav/brass'
-#INSTR=WPATH+'/wav/glock'
+def set_offset(val):
+	global OFF
+	OFF = val
+
+def load_instruments(patch):
+	global c,d,e,f,g,notes
+
+	WPATH = os.getcwd()
+	INSTR = WPATH+'/wav/'+patch
+
+	c = wave.open(INSTR+'/C.wav', 'r')
+	d = wave.open(INSTR+'/D.wav', 'r')
+	e = wave.open(INSTR+'/E.wav', 'r')
+	f = wave.open(INSTR+'/F.wav', 'r')
+	g = wave.open(INSTR+'/G.wav', 'r')
+	
+	notes = {'c':c, 'd':d, 'e':e, 'f':f, 'g':g}
 
 def play_note(note):
 	note.rewind()
@@ -40,16 +54,24 @@ def play_note(note):
 
 if __name__ == "__main__":
 
+	CHUNK = 64
+	CHANNELS = 2
 	HOST = '0.0.0.0'
 	PORT = 12345
+	DEBUG = False
+	OFF = 0 
 
-	c = wave.open(INSTR+'/C.wav', 'r')
-	d = wave.open(INSTR+'/D.wav', 'r')
-	e = wave.open(INSTR+'/E.wav', 'r')
-	f = wave.open(INSTR+'/F.wav', 'r')
-	g = wave.open(INSTR+'/G.wav', 'r')
+	c = None
+	d = None
+	e = None
+	f = None
+	g = None
 
-	notes = {'c':c, 'd':d, 'e':e, 'f':f, 'g':g}
+	notes = None
+
+	# INITIALIZE
+	load_instruments('brass')
+	set_offset(150)
 
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -69,3 +91,4 @@ if __name__ == "__main__":
 		if note in ['c','d','e','f','g']:
 			#time.sleep(0.01)
 			play_note(notes[note])
+
