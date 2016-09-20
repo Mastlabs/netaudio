@@ -37,16 +37,14 @@ def play_note(note):
 		frame = note.readframes(CHUNK)
 		hashd = hash(frame) 
 		if hashd != 0:
-			print "STR "+str(i)+":"+str(hashd)
+			print "START "+str(i)+":"+str(hashd)
 			lstream.write(frame)
-	while True:
-		if len(oframes) > 0:
-			ndata = oframes.pop(0)
-			hashf = hash(ndata)
-			if hashf != 0:
-				rstream.write(ndata)
-		else:
-			break
+	while len(oframes) > 0:
+		ndata = oframes.pop(0)
+		hashf = hash(ndata)
+		if hashf != 0:
+			print "END "+":"+str(hashf)
+			rstream.write(ndata)
 
 def send_notes():
 	while True:
