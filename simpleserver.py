@@ -18,11 +18,11 @@ from threading import Thread, currentThread
 
 CHUNK = 64
 CHANNELS = 2
-OFF = 200
+OFF = 150
 
 WPATH = os.getcwd()
 #INSTR=WPATH+'/wav/piano'
-#INSTR=WPATH+'/wav/strings'
+#NSTR=WPATH+'/wav/strings'
 #INSTR=WPATH+'/wav/perc'
 INSTR=WPATH+'/wav/brass'
 #INSTR=WPATH+'/wav/glock'

@@ -23,12 +23,12 @@ from getch import getch, pause
 CHUNK = 64
 CHANNELS = 2
 MODE = 'local'
-OFF = 200
+OFF = 150
 oframes = []
 
 # setup socket
-#HOST = ''
-HOST = '45.79.175.75'
+HOST = ''
+#HOST = '45.79.175.75'
 PORT = 12345
 
 def play_note(note):
@@ -39,12 +39,18 @@ def play_note(note):
 		if hashd != 0:
 			print "START "+str(i)+":"+str(hashd)
 			lstream.write(frame)
+			#time.sleep(0.001)
+	# I put the stream write out here vs. the other
+	# thread to keep in lockstep since I was too
+	# lazy to write a lock mechanism. Once we do,
+	# this can move back into the stream thread.		
 	while len(oframes) > 0:
 		ndata = oframes.pop(0)
 		hashf = hash(ndata)
 		if hashf != 0:
 			print "END "+":"+str(hashf)
 			rstream.write(ndata)
+			#time.sleep(0.001)
 
 def send_notes():
 	while True:
