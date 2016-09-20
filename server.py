@@ -23,8 +23,8 @@ from threading import Thread, currentThread, enumerate
 
 CHUNK = 64
 CHANNELS = 2
-# DEBUG = False
-DEBUG = True
+DEBUG = False
+#DEBUG = True
 
 logging.basicConfig(
 	format='%(asctime)s %(levelname)s %(message)s',

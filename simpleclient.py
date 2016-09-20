@@ -17,14 +17,14 @@ import time
 import wave
 import thread
 import threading
-from pyfiglet import Figlet
 from threading import Thread, currentThread
 from getch import getch, pause
 
 CHUNK = 64
 CHANNELS = 2
 MODE = 'local'
-OFF = 100
+OFF = 200
+oframes = []
 
 # setup socket
 #HOST = ''
@@ -39,6 +39,14 @@ def play_note(note):
 		if hashd != 0:
 			print "STR "+str(i)+":"+str(hashd)
 			lstream.write(frame)
+	while True:
+		if len(oframes) > 0:
+			ndata = oframes.pop(0)
+			hashf = hash(ndata)
+			if hashf != 0:
+				rstream.write(ndata)
+		else:
+			break
 
 def send_notes():
 	while True:
@@ -53,25 +61,12 @@ def send_notes():
 def stream_audio():
 	while True:
 		odata = s.recv(CHUNK * CHANNELS * 2)
-		if odata > CHUNK:
-			rstream.write(odata)
-			time.sleep(0.001)
-
-def splash():
-	os.system('clear')
-	f = Figlet(font='standard')
-	print "\n\n\n"
-	print f.renderText('-NETAUDIO-'),
-	print "\t\t(c) 2016 Omnibot Holdings LLC"
-	print "\n\n\n\n"
-	time.sleep(1.0)
+		oframes.append(odata)
+		#ndata = oframes.pop(0)
+		#rstream.write(ndata)
+		#time.sleep(0.001)
 
 if __name__ == '__main__':
-
-
-	# Render splash
-
-	splash()
 
 	# Clear screen
 	clear = os.system('clear')

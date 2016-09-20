@@ -30,15 +30,14 @@ from getch import getch, pause
 CHUNK = 64
 CHANNELS = 2
 MODE = 'local'
-# DEBUG = False
-DEBUG = True
+DEBUG = False
+#DEBUG = True
 
 # setup socket
-# HOST = '0.0.0.0'
-HOST = '45.79.175.75'
+HOST = '0.0.0.0'
+#HOST = '45.79.175.75'
 PORT = 12345
 logger = logging.getLogger('client')
-swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
 
 # Logger
 logging.basicConfig(
@@ -97,7 +96,7 @@ def stream_incoming_odata(send_note_thread):
 			break
 
 		#data = s.recv(CHUNK * CHANNELS * 4)
-		data = s.recv(CHUNK * CHANNELS * 2)
+		data = s.recv(CHUNK * CHANNELS * 4)
 		odata = base64.b64decode(data) 		# decode binary buffer to b64
 		
 		if DEBUG:
@@ -143,9 +142,11 @@ if __name__ == '__main__':
 		if PATCH is None:
 			PATCH = 'piano'
 
-		#WPATH = '/Users/iakom/Developer/Mixer/'
 		WPATH = '.'
 		INSTR=WPATH+'/wav/'+PATCH
+
+		# Create Mixer
+		swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
 
 		# Set Sounds
 		c = swmixer.Sound(INSTR+'/C.wav')
@@ -192,6 +193,9 @@ if __name__ == '__main__':
 	elif MODE == 'hybrid':
 
 		#### LOCAL PART
+
+		# Create mixer
+		swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
 
 		PATCH = netmidi.select_instrument()
 	

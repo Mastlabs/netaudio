@@ -18,7 +18,7 @@ from threading import Thread, currentThread
 
 CHUNK = 64
 CHANNELS = 2
-OFF = 100
+OFF = 200
 
 WPATH = os.getcwd()
 #INSTR=WPATH+'/wav/piano'
