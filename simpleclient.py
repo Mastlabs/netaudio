@@ -51,7 +51,7 @@ def play_note(note):
 		frame = note.readframes(CHUNK)
 		hashd = hash(frame) 
 		if hashd != 0:
-			print "START "+str(i)+":"+str(hashd)
+			#print "START "+str(i)+":"+str(hashd)
 			lstream.write(frame)
 			#time.sleep(0.001)
 	# I put the stream write out here vs. the other
@@ -62,18 +62,20 @@ def play_note(note):
 		ndata = oframes.pop(0)
 		hashf = hash(ndata)
 		if hashf != 0:
-			print "END "+":"+str(hashf)
+			#print "END "+":"+str(hashf)
 			rstream.write(ndata)
 			#time.sleep(0.001)
 
 def send_notes():
 	while True:
 		note = getch()
-		if note in 'Qq':
-			quit()
+		if note in 'q':
+			print "Quitting"
+			break
 		elif note in ['c','d','e','f','g']:
 			s.send(note)
 			play_note(notes[note])
+	quit()
 
 def stream_audio():
 	while True:
@@ -144,3 +146,5 @@ if __name__ == '__main__':
 	stream = Thread(target=stream_audio)
 	stream.start()
 	stream.join()
+
+	quit()
