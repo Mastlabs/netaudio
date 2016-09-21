@@ -11,11 +11,13 @@ import os
 import sys
 import time
 import base64
+import cPickle
 import logging
 import netmixer
 import datetime
 import struct
 import socket
+import zlib
 import numpy as np
 from getch import getch, pause
 from Queue import Queue
@@ -24,7 +26,7 @@ from threading import Thread, currentThread, enumerate
 CHUNK = 64
 CHANNELS = 2
 DEBUG = False
-#DEBUG = True
+OFFSET = 0
 
 logging.basicConfig(
 	format='%(asctime)s %(levelname)s %(message)s',
@@ -35,23 +37,19 @@ logging.basicConfig(
 logger = logging.getLogger('server')
 netmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
 
-try:
-	instrument = sys.argv[1]
-except IndexError, e:
-	print 'Argument missing: Usage - python server.py piano'
-	print 'arguments: [piano, strings, perc, brass, glock]'
-	sys.exit(1)
+def load_instruments(patch):
+	global notes
 
-INSTR = os.getcwd()+'/wav/'+instrument
+	WPATH = os.getcwd()
+	INSTR = WPATH+'/wav/'+patch
+	print 'instr', INSTR
+	c = netmixer.Sound(INSTR+'/C.wav')
+	d = netmixer.Sound(INSTR+'/D.wav')
+	e = netmixer.Sound(INSTR+'/E.wav')
+	f = netmixer.Sound(INSTR+'/F.wav')
+	g = netmixer.Sound(INSTR+'/G.wav')
 
-# Set Sounds
-c = netmixer.Sound(INSTR+'/C.wav')
-d = netmixer.Sound(INSTR+'/D.wav')
-e = netmixer.Sound(INSTR+'/E.wav')
-f = netmixer.Sound(INSTR+'/F.wav')
-g = netmixer.Sound(INSTR+'/G.wav')
-
-notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
+	notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
 
 def runmixer_and_stream(conn):
 
@@ -67,11 +65,11 @@ def runmixer_and_stream(conn):
 			try:
 				if DEBUG:
 					if tag:
-						odata = odata+'data----{}:{}----data'.format(note,tag)
+						# odata = odata+'data----{}:{}----data'.format(note,tag)
+						# odata = base64.b64encode(odata) 		# encode binary buffer to b64
 						print '[TICK] %s with tag #%d at %s'%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
-				
-				encode = base64.b64encode(odata) 		# encode binary buffer to b64
-				conn.send(encode)
+						
+				conn.send(odata)
 
 			except socket.error, e:
 				break
@@ -79,9 +77,6 @@ def runmixer_and_stream(conn):
 	conn.close()
 
 def run_server(HOST, PORT):
-
-	if DEBUG:
-		print 'check threads in process', enumerate() 		# Here, we used enumerate() function to check whether recursive function creates a new thread or closing old one (we are doing that), if it spawns a new thread this is fatal 
 
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  		# occurs because the previous execution of your script has left the socket in a TIME_WAIT state, and can't be immediately reused, This can be resolved by using the socket.SO_REUSEADDR flag.
@@ -98,17 +93,39 @@ def run_server(HOST, PORT):
 	print "\nServer started...To exit gracefully press ctrl + c" 		# Can we display this also in debug mode ?
 
 	try:
+		cmd = conn.recv(64)
+		patch, debug, offset = cPickle.loads(cmd)
+		
+		load_instruments(patch)
+
+		global DEBUG
+		if debug: 		# Auto eval boolean flag
+			DEBUG = debug
+
+		global OFFSET
+		if offset:
+			OFFSET = offset
+
+		if DEBUG:
+			print 'check threads in process', enumerate() 		# Here, we used enumerate() function to check whether recursive function creates a new thread or closing old one (we are doing that), if it spawns a new thread this is fatal 
+
 		while True:
 			unpacker = struct.Struct('si')
 			rcv_note = conn.recv(unpacker.size)
 			if len(rcv_note) > 0:
+				print 'note', rcv_note
 				note, tag = unpacker.unpack(rcv_note)
 				if note in ['c','d','e','f','g']:
 					
 					if DEBUG:
 						print "[RECV] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 					
-					notes[note].play(gnote=note, frame_tag=tag, debug=DEBUG)
+					notes[note].play(
+									offset=OFFSET,
+									gnote=note, 
+									frame_tag=tag, 
+									debug=DEBUG
+								)
 				
 				elif note == 'q': 		# q key note is only intended for quit purpose only, if used then we raise connection reset error
 					raise socket.error(socket.errno.ECONNRESET, 'Connection Reset')
@@ -136,7 +153,7 @@ def run_server(HOST, PORT):
 if __name__ == "__main__":
 	
 	stop_stream = False
-	HOST = '0.0.0.0'
+	HOST = '127.0.0.1'	
 	PORT = 12345
 
 	try:

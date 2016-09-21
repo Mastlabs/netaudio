@@ -43,6 +43,7 @@ gid = 1
 glock = thread.allocate_lock()
 ginput_device_index = None
 goutput_device_index = None
+gtick = 1
 
 class _SoundSourceData:
     def __init__(self, data, loops):
@@ -578,6 +579,8 @@ def tick(extra=None):
     """
     global ginit
     global gmixer_srcs
+   
+    frame_occur = False
     rmlist = []
     if not ginit:
         return
@@ -589,6 +592,7 @@ def tick(extra=None):
         s = sndevt._get_samples(sz)
         if s is not None:
             b += s
+            frame_occur = True
         if sndevt.done:
             rmlist.append(sndevt)
     if extra is not None:
@@ -605,7 +609,7 @@ def tick(extra=None):
     
     while gstream.get_write_available() < gchunksize: time.sleep(0.001)
     gstream.write(odata, gchunksize)
-    
+
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
     """Initialize mixer
 

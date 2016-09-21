@@ -12,6 +12,7 @@ import os
 import sys
 import time
 import base64
+import cPickle
 import datetime
 import logging
 import swmixer
@@ -22,21 +23,14 @@ import pyaudio
 import datetime
 import thread
 import threading
+import zlib
 import numpy as np
 from pyfiglet import Figlet
 from threading import Thread, currentThread
 from getch import getch, pause
+from subprocess import Popen, PIPE, STDOUT
 
-CHUNK = 64
-CHANNELS = 2
-MODE = 'local'
-DEBUG = False
-#DEBUG = True
 
-# setup socket
-HOST = '0.0.0.0'
-#HOST = '45.79.175.75'
-PORT = 12345
 logger = logging.getLogger('client')
 
 # Logger
@@ -45,6 +39,21 @@ logging.basicConfig(
 	filename='client_logs.log',
 	level=logging.INFO,
 	)
+
+
+def load_instruments(patch):
+	global notes
+
+	WPATH = os.getcwd()
+	INSTR = WPATH+'/wav/'+patch
+	print 'hybrid inst', INSTR
+	c = swmixer.Sound(INSTR+'/C.wav')
+	d = swmixer.Sound(INSTR+'/D.wav')
+	e = swmixer.Sound(INSTR+'/E.wav')
+	f = swmixer.Sound(INSTR+'/F.wav')
+	g = swmixer.Sound(INSTR+'/G.wav')
+
+	notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
 
 # keyboard sends qwerty input
 def record_send_note():
@@ -75,13 +84,16 @@ def record_play_note():
 				print "Playing " + note
 
 def hybrid_fork_note():
+	tag = 0
 	while True:
+		tag += 1
 		note = getch()
 		if note == 'q':
 			break
 		elif note in ['c','d','e','f','g']:
-			notes[note].play()
-			s.send(note)
+			notes[note].play() 			# swmixer play
+			key_event = struct.pack('si', note, tag)
+			s.send(key_event)
 			if DEBUG:
 				print "Playing & Sending " + note
 	
@@ -95,26 +107,37 @@ def stream_incoming_odata(send_note_thread):
 			s.close()
 			break
 
-		#data = s.recv(CHUNK * CHANNELS * 4)
-		data = s.recv(CHUNK * CHANNELS * 4)
-		odata = base64.b64decode(data) 		# decode binary buffer to b64
-		
+		odata = s.recv(CHUNK * CHANNELS * 4)
+
 		if DEBUG:
-			if 'data----' in odata:
-				try:
-					extra_str = odata[odata.find('data----'):odata.find('----data')]
-					note, tag = tuple(extra_str.split(':'))
-					print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+			# odata = base64.b64decode(odata) 		# decode binary buffer to b64
+			# if 'data----' in odata:
+			# 	try:
+			# 		extra_str = odata[odata.find('data----'):odata.find('----data')]
+			# 		note, tag = tuple(extra_str.split(':'))
+			# 		print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 				
-				except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
-					print e
+			# 	except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
+			# 		print e
 				
-				odata = odata.replace(extra_str+'----data', '')
-				
+			# 	odata = odata.replace(extra_str+'----data', '')
+			pass
+
 		if odata:
 			pstream.write(odata)
 
-	
+def get_server_latency(HOST):
+	cmd = 'fping -e {host}'.format(host=HOST)
+	p=Popen(cmd.split(' '), stdout=PIPE, stderr=PIPE).communicate()[0].strip() 		 # 0 -> result, 1-> error
+	if p:
+		print p
+		try:
+			return round(float(p[p.find("(")+1:p.find("ms")].strip()))
+		except ValueError, e: 		# unreachable
+			return None
+		
+	return None
+
 def splash():
 	os.system('clear')
 	f = Figlet(font='standard')
@@ -126,14 +149,23 @@ def splash():
 
 if __name__ == '__main__':
 
+	# HOST = '127.0.0.1'	
+	HOST = '45.79.175.75'
+	PORT = 12345
+
+	CHUNK = 64
+	CHANNELS = 2
+	MODE = 'local'
+	DEBUG = True
+	OFFSET = 0
+	PATCH = 'piano'
+	
 	splash()		# Render splash
-
 	clear = os.system('clear')		# Clear screen
-
 	MODE = netmidi.select_mode()
 	if MODE in 'Qquit':
 		quit()
-
+	
 	#input_id = netmidi.select_midi_device()
 
 	if MODE == 'local':
@@ -182,6 +214,9 @@ if __name__ == '__main__':
 
 			quit()
 
+		commands = cPickle.dumps((PATCH, DEBUG, OFFSET))
+		s.send(commands)
+
 		keys = Thread(target=record_send_note)	
 		keys.start()
 
@@ -189,38 +224,22 @@ if __name__ == '__main__':
 		stream.start()
 		stream.join()
 
-
 	elif MODE == 'hybrid':
+
+		get_remote_latency = get_server_latency(HOST)
+		print 'latency', get_remote_latency
+		if get_remote_latency is not None:
+			OFFSET = int(get_remote_latency)
 
 		#### LOCAL PART
 
-		# Create mixer
 		swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
-
-		PATCH = netmidi.select_instrument()
-	
-		if PATCH is None:
-			PATCH = 'piano'
-
-		#WPATH = '/Users/iakom/Developer/Mixer/'
-		WPATH = '.'
-		INSTR=WPATH+'/wav/'+PATCH
-
-		# Set Sounds
-		c = swmixer.Sound(INSTR+'/C.wav')
-		d = swmixer.Sound(INSTR+'/D.wav')
-		e = swmixer.Sound(INSTR+'/E.wav')
-		f = swmixer.Sound(INSTR+'/F.wav')
-		g = swmixer.Sound(INSTR+'/G.wav')
-
-		notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
-
+		load_instruments(PATCH)
 		swmixer.start()
 
 		######## REMOTE PART
 
 		p = pyaudio.PyAudio()
-
 		pstream = p.open(
 			format = pyaudio.paInt16,
 			channels = 2,
@@ -229,14 +248,16 @@ if __name__ == '__main__':
 
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
-			s.connect((HOST, PORT))
+			connect_res = s.connect_ex((HOST, PORT))
 		except socket.error, msg:
 			if DEBUG:
 				print "Could not connect with server."
 				print msg
-
 			quit()
 
+		commands = cPickle.dumps((PATCH, DEBUG, OFFSET))
+		s.send(commands)
+		
 		keys = Thread(target=hybrid_fork_note)  
 		keys.start()
 
@@ -244,10 +265,8 @@ if __name__ == '__main__':
 		stream.start()
 		stream.join()
 
-		
 	elif MODE == 'quit':
 		quit()
 
 	else:
 		print 'Unknown selection'
-
