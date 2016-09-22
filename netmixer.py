@@ -156,6 +156,7 @@ class Channel:
         self.set_volume(0.0, fadetime=time)
         glock.release()
     def _get_samples(self, sz):
+        print 'server audio pos',self.src.pos
         if not self.active: return None
         v = calc_vol(self.src.pos, self.env)
         z = self.src.get_samples(sz)
@@ -317,6 +318,7 @@ class Sound:
         global note
         global tag
         global gtick
+        sz = gchunksize * gchannels
         gtick = 0
         if gnote:
             note = gnote
@@ -335,8 +337,7 @@ class Sound:
                 else:
                     env = [[offset, 0.0], [offset + fadein, volume]]
         src = _SoundSourceData(self.data, loops)
-        src.pos = offset
-        print 'source pos', src.pos
+        src.pos = offset * sz
         sndevent = Channel(src, env)
         glock.acquire()
         gmixer_srcs.append(sndevent)
