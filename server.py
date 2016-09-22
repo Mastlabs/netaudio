@@ -68,9 +68,8 @@ def runmixer_and_stream(conn):
 						# odata = odata+'data----{}:{}----data'.format(note,tag)
 						# odata = base64.b64encode(odata) 		# encode binary buffer to b64
 						print '[TICK] %s with tag #%d at %s'%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
-						
+					
 				conn.send(odata)
-
 			except socket.error, e:
 				break
 	
@@ -153,7 +152,8 @@ def run_server(HOST, PORT):
 if __name__ == "__main__":
 	
 	stop_stream = False
-	HOST = '127.0.0.1'	
+	HOST = '0.0.0.0'
+	# HOST = '127.0.0.1'
 	PORT = 12345
 
 	try:
@@ -165,4 +165,4 @@ if __name__ == "__main__":
 		stop_stream = True
 		sys.exit(1)
 
-		
+	

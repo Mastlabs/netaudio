@@ -91,7 +91,7 @@ def hybrid_fork_note():
 		if note == 'q':
 			break
 		elif note in ['c','d','e','f','g']:
-			notes[note].play() 			# swmixer play
+			notes[note].play(loffset=OFFSET) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
 			s.send(key_event)
 			if DEBUG:

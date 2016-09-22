@@ -113,7 +113,7 @@ class _SoundSourceStream:
 # A channel is a "sound event" that is playing
 class Channel:
     """Represents one sound source currently playing"""
-    def __init__(self, src, env):
+    def __init__(self, src, env, loffset):
         global gid
         self.id = gid
         gid += 1
@@ -121,6 +121,7 @@ class Channel:
         self.env = env
         self.active = True
         self.done = False
+        self.skip_offset = loffset
     def stop(self):
         """Stop the sound playing"""
         glock.acquire()
@@ -178,6 +179,9 @@ class Channel:
         glock.release()
     def _get_samples(self, sz):
         if not self.active: return None
+        if self.src.pos+sz > self.skip_offset * sz:
+            return None
+        print 'client audio pos', self.src.pos+sz, self.skip_offset * sz
         v = calc_vol(self.src.pos, self.env)
         z = self.src.get_samples(sz)
         if self.src.done: self.done = True
@@ -247,6 +251,7 @@ class Sound:
 
     def __init__(self, filename=None, data=None):
         """Create new sound from a WAV file, MP3 file, or explicit sample data"""
+        # print 'filename', filename
         assert(ginit == True)
         # Three ways to construct Sound
         # First is by passing data directly
@@ -338,7 +343,7 @@ class Sound:
         """
         return len(self.data)
 
-    def play(self, volume=1.0, offset=0, fadein=0, envelope=None, loops=0):
+    def play(self, volume=1.0, offset=0, fadein=0, envelope=None, loops=0, loffset=0):
         """Play the sound
 
         Keyword arguments:
@@ -362,7 +367,7 @@ class Sound:
                     env = [[offset, 0.0], [offset + fadein, volume]]
         src = _SoundSourceData(self.data, loops)
         src.pos = offset
-        sndevent = Channel(src, env)
+        sndevent = Channel(src, env, loffset)
         glock.acquire()
         gmixer_srcs.append(sndevent)
         glock.release()
@@ -607,8 +612,9 @@ def tick(extra=None):
     odata = (b.astype(numpy.int16)).tostring()
     # yield rather than block, pyaudio doesn't release GIL
     
-    while gstream.get_write_available() < gchunksize: time.sleep(0.001)
-    gstream.write(odata, gchunksize)
+    if frame_occur:
+        while gstream.get_write_available() < gchunksize: time.sleep(0.001)
+        gstream.write(odata, gchunksize)
 
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
     """Initialize mixer
