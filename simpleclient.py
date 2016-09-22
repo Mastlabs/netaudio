@@ -15,6 +15,8 @@ import pyaudio
 import sys
 import time
 import wave
+import numpy
+import struct
 import thread
 import threading
 from threading import Thread, currentThread
@@ -46,22 +48,45 @@ def load_instruments(patch):
 	notes = {'c':c, 'd':d, 'e':e, 'f':f, 'g':g}
 
 def play_note(note):
+	j=2
 	note.rewind()
 	for i in range(OFF):
 		frame = note.readframes(CHUNK)
+
+		if (i > OFF - 10):
+			#print "DC OFFSET ===================="
+			s = numpy.fromstring(frame, numpy.int16)
+			s = s.clip(-32000.0/j,32000.0/j)
+			frame = struct.pack('h'*len(s), *s)
+			j = j*4
+
 		hashd = hash(frame) 
 		if hashd != 0:
 			#print "START "+str(i)+":"+str(hashd)
 			lstream.write(frame)
 			#time.sleep(0.001)
+	
 	# I put the stream write out here vs. the other
 	# thread to keep in lockstep since I was too
 	# lazy to write a lock mechanism. Once we do,
 	# this can move back into the stream thread.		
+
 	while len(oframes) > 0:
 		ndata = oframes.pop(0)
 		hashf = hash(ndata)
 		if hashf != 0:
+			pass
+			#print "END "+":"+str(hashf)
+			rstream.write(ndata)
+			#time.sleep(0.001)
+
+def drain_stream():
+	time.sleep(1.0)
+	while len(oframes) > 0:
+		ndata = oframes.pop(0)
+		hashf = hash(ndata)
+		if hashf != 0:
+			pass
 			#print "END "+":"+str(hashf)
 			rstream.write(ndata)
 			#time.sleep(0.001)
@@ -69,12 +94,23 @@ def play_note(note):
 def send_notes():
 	while True:
 		note = getch()
-		if note in 'q':
+		if note in 'qQ':
 			print "Quitting"
 			break
+		# IF CAPS, REMOTE MODE
+		elif note in ['C', 'D', 'E', 'F', 'G']:
+			print "REMOTE NOTE"
+			print "Wait..."
+			s.send(note)
+			drain_stream()
+			print "Play."
+		# IF LOWERCASE, HYBRID MODE
 		elif note in ['c','d','e','f','g']:
+			print "HYBRID NOTE"
+			print "Wait..."
 			s.send(note)
 			play_note(notes[note])
+			print "Play."
 	quit()
 
 def stream_audio():

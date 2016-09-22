@@ -13,6 +13,8 @@ import time
 import wave
 import datetime
 import socket
+import numpy
+import struct
 from Queue import Queue
 from threading import Thread, currentThread
 
@@ -47,6 +49,12 @@ def play_note(note):
 		frame = note.readframes(CHUNK)
 		if j < OFF:
 			continue
+		if (j > OFF and j < OFF+10):
+			print "DC OFFSET ===================="
+			s = numpy.fromstring(frame, numpy.int16)
+			s = s.clip(-3000.0,3000.0)
+			frame = struct.pack('h'*len(s), *s)
+			
 		hashd = hash(frame) 
 		if hashd != 0:
 			print "FIN "+str(j)+":"+str(hashd)
@@ -88,7 +96,12 @@ if __name__ == "__main__":
 
 	while True:
 		note = conn.recv(CHUNK * CHANNELS * 2)
-		if note in ['c','d','e','f','g']:
-			#time.sleep(0.01)
+		if note.istitle():
+			note = note.lower()
+			set_offset(0)
 			play_note(notes[note])
-
+		elif note in ['c','d','e','f','g']:
+			#time.sleep(0.01)
+			set_offset(150)
+			play_note(notes[note])
+		
