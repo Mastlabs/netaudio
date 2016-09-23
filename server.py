@@ -112,7 +112,6 @@ def run_server(HOST, PORT):
 			unpacker = struct.Struct('si')
 			rcv_note = conn.recv(unpacker.size)
 			if len(rcv_note) > 0:
-				print 'note', rcv_note
 				note, tag = unpacker.unpack(rcv_note)
 				if note in ['c','d','e','f','g']:
 					
