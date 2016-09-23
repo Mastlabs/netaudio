@@ -139,8 +139,8 @@ if __name__ == '__main__':
 	notes = None
 
 	# setup socket
-	HOST = ''
-	#HOST = '45.79.175.75'
+	#HOST = ''
+	HOST = '45.79.175.75'
 	PORT = 12345
 
 	# Clear screen
@@ -158,15 +158,13 @@ if __name__ == '__main__':
 		format = pyaudio.paInt16,
 		channels = 2,
 		rate = 44100,
-		output = True,
-		output_device_index=OID)
+		output = True)
 
 	lstream = p.open(
 		format = pyaudio.paInt16,
 		channels = 2,
 		rate = 44100,
-		output = True,
-		output_device_index=OID)
+		output = True)
 
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	try:
