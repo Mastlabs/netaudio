@@ -337,7 +337,7 @@ class Sound:
                 else:
                     env = [[offset, 0.0], [offset + fadein, volume]]
         src = _SoundSourceData(self.data, loops)
-        src.pos = offset * sz
+        src.pos = offset * sz - sz * 10
         sndevent = Channel(src, env)
         glock.acquire()
         gmixer_srcs.append(sndevent)
