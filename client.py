@@ -23,8 +23,9 @@ import pyaudio
 import datetime
 import thread
 import threading
-import zlib
+import Queue
 import numpy as np
+from collections import deque
 from pyfiglet import Figlet
 from threading import Thread, currentThread
 from getch import getch, pause
@@ -99,44 +100,71 @@ def hybrid_fork_note():
 	
 	s.close()
 
-def stream_incoming_odata(send_note_thread):
-	
+def store_frames(send_note_thread):
+	global oframes
 	while True:
-	
 		if not send_note_thread.isAlive():
 			s.close()
 			break
 
 		odata = s.recv(CHUNK * CHANNELS * 4)
+		# oframes.append(odata)
 
-		if DEBUG:
-			# odata = base64.b64decode(odata) 		# decode binary buffer to b64
-			# if 'data----' in odata:
-			# 	try:
-			# 		extra_str = odata[odata.find('data----'):odata.find('----data')]
-			# 		note, tag = tuple(extra_str.split(':'))
-			# 		print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
-				
-			# 	except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
-			# 		print e
-				
-			# 	odata = odata.replace(extra_str+'----data', '')
-			pass
+		pstream.write(odata)
 
-		if odata:
-			pstream.write(odata)
+def stream_incoming_odata(send_note_thread):
+	
+	while True:
+		if not send_note_thread.isAlive():
+			break
+
+		# if oframes:
+		# 	ndata = oframes.popleft()
+			# hashf = hash(ndata)
+			# if hashf != 0:
+			# # 	# print 'Start Server streaming', hashf
+			# 	pstream.write(ndata)
+	
+	# while True:
+	
+	# 	if not send_note_thread.isAlive():
+	# 		s.close()
+	# 		break
+
+	# 	odata = s.recv(CHUNK * CHANNELS * 4)
+
+	# 	if DEBUG:
+	# 		# odata = base64.b64decode(odata) 		# decode binary buffer to b64
+	# 		# if 'data----' in odata:
+	# 		# 	try:
+	# 		# 		extra_str = odata[odata.find('data----'):odata.find('----data')]
+	# 		# 		note, tag = tuple(extra_str.split(':'))
+	# 		# 		print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+				
+	# 		# 	except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
+	# 		# 		print e
+				
+	# 		# 	odata = odata.replace(extra_str+'----data', '')
+	# 		pass
+
+	# 	if odata:
+	# 		print 'oframes', oframes
+	# 		pstream.write(odata)
 
 def get_server_latency(HOST):
 	cmd = 'fping -e {host}'.format(host=HOST)
-	p=Popen(cmd.split(' '), stdout=PIPE, stderr=PIPE).communicate()[0].strip() 		 # 0 -> result, 1-> error
-	if p:
-		print p
-		try:
-			return round(float(p[p.find("(")+1:p.find("ms")].strip()))
-		except ValueError, e: 		# unreachable
-			return None
+	try:
+		p=Popen(cmd.split(' '), stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=False).communicate()[0].strip() 		 # 0 -> result, 1-> error
+		if p:
+			try:
+				return round(float(p[p.find("(")+1:p.find("ms")].strip()))
+			except ValueError, e: 		# unreachable
+				return 0
+	
+	except Exception, e:	# fping not installed
+		return 0
 		
-	return None
+	return 0
 
 def splash():
 	os.system('clear')
@@ -159,6 +187,8 @@ if __name__ == '__main__':
 	DEBUG = True
 	OFFSET = 0
 	PATCH = 'piano'
+	OID = 2
+	oframes = deque()
 	
 	splash()		# Render splash
 	clear = os.system('clear')		# Clear screen
@@ -225,9 +255,9 @@ if __name__ == '__main__':
 		stream.join()
 
 	elif MODE == 'hybrid':
-
-		get_remote_latency = get_server_latency(HOST)
-		print 'latency', get_remote_latency
+		
+		get_remote_latency = get_server_latency('45.79.175.75')
+		print 'latency in ms: ', get_remote_latency
 		if get_remote_latency is not None:
 			OFFSET = int(get_remote_latency)
 
@@ -244,7 +274,8 @@ if __name__ == '__main__':
 			format = pyaudio.paInt16,
 			channels = 2,
 			rate = 44100,
-			output = True)
+			output = True,
+			output_device_index=OID)
 
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
@@ -261,9 +292,12 @@ if __name__ == '__main__':
 		keys = Thread(target=hybrid_fork_note)  
 		keys.start()
 
-		stream = Thread(target=stream_incoming_odata, args=(keys, ))
-		stream.start()
-		stream.join()
+		store_buffer = Thread(target=store_frames, args=(keys, ))
+		store_buffer.start()
+
+		# stream = Thread(target=stream_incoming_odata, args=(store_buffer, ))
+		# stream.start()
+		# stream.join()
 
 	elif MODE == 'quit':
 		quit()

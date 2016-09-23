@@ -179,9 +179,9 @@ class Channel:
         glock.release()
     def _get_samples(self, sz):
         if not self.active: return None
-        if self.src.pos+sz > self.skip_offset * sz:
+        if self.src.pos > self.skip_offset * sz + sz*20:
             return None
-        print 'client audio pos', self.src.pos+sz, self.skip_offset * sz
+        # print 'client audio pos', self.src.pos+sz, self.skip_offset * sz
         v = calc_vol(self.src.pos, self.env)
         z = self.src.get_samples(sz)
         if self.src.done: self.done = True
@@ -612,8 +612,8 @@ def tick(extra=None):
     odata = (b.astype(numpy.int16)).tostring()
     # yield rather than block, pyaudio doesn't release GIL
     
+    while gstream.get_write_available() < gchunksize: time.sleep(0.001)
     if frame_occur:
-        while gstream.get_write_available() < gchunksize: time.sleep(0.001)
         gstream.write(odata, gchunksize)
 
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
