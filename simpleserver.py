@@ -45,15 +45,18 @@ def load_instruments(patch):
 
 def play_note(note):
 	note.rewind()
+	k = 1
 	for j in range(note.getnframes()):
 		frame = note.readframes(CHUNK)
 		if j < OFF:
 			continue
-		if (j > OFF and j < OFF+10):
-			print "DC OFFSET ===================="
-			s = numpy.fromstring(frame, numpy.int16)
-			s = s.clip(-3000.0,3000.0)
-			frame = struct.pack('h'*len(s), *s)
+		# if (j > OFF and j < OFF+10):
+		# 	print "DC OFFSET ===================="
+		# 	s = numpy.fromstring(frame, numpy.int16)
+		# 	#s = s.clip(-3000.0,3000.0)
+		# 	s = s * (k/10)
+		# 	frame = struct.pack('h'*len(s), *s)
+		# 	k = k + 1
 			
 		hashd = hash(frame) 
 		if hashd != 0:
@@ -79,7 +82,7 @@ if __name__ == "__main__":
 
 	# INITIALIZE
 	load_instruments('brass')
-	set_offset(150)
+	set_offset(250)
 
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -102,6 +105,6 @@ if __name__ == "__main__":
 			play_note(notes[note])
 		elif note in ['c','d','e','f','g']:
 			#time.sleep(0.01)
-			set_offset(150)
+			set_offset(250)
 			play_note(notes[note])
 		

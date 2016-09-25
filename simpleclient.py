@@ -48,17 +48,19 @@ def load_instruments(patch):
 	notes = {'c':c, 'd':d, 'e':e, 'f':f, 'g':g}
 
 def play_note(note):
-	j=2
+	j=1
 	note.rewind()
+	FEA = OFF - 60
 	for i in range(OFF):
 		frame = note.readframes(CHUNK)
 
-		if (i > OFF - 10):
-			#print "DC OFFSET ===================="
-			s = numpy.fromstring(frame, numpy.int16)
-			s = s.clip(-32000.0/j,32000.0/j)
-			frame = struct.pack('h'*len(s), *s)
-			j = j*4
+		# if (i > FEA):
+		# 	#print "DC OFFSET ===================="
+		# 	s = numpy.fromstring(frame, numpy.int16)
+		# 	#s = s.clip(-32000.0,32000.0)
+		# 	s = s * j
+		# 	frame = struct.pack('h'*len(s), *s)
+		# 	j = j * 0.1
 
 		hashd = hash(frame) 
 		if hashd != 0:
@@ -75,9 +77,8 @@ def play_note(note):
 		ndata = oframes.pop(0)
 		hashf = hash(ndata)
 		if hashf != 0:
-			pass
 			#print "END "+":"+str(hashf)
-			rstream.write(ndata)
+			lstream.write(ndata)
 			#time.sleep(0.001)
 
 def drain_stream():
@@ -86,9 +87,8 @@ def drain_stream():
 		ndata = oframes.pop(0)
 		hashf = hash(ndata)
 		if hashf != 0:
-			pass
 			#print "END "+":"+str(hashf)
-			rstream.write(ndata)
+			lstream.write(ndata)
 			#time.sleep(0.001)
 
 def send_notes():
@@ -139,8 +139,8 @@ if __name__ == '__main__':
 	notes = None
 
 	# setup socket
-	#HOST = ''
-	HOST = '45.79.175.75'
+	HOST = ''
+	#HOST = '45.79.175.75'
 	PORT = 12345
 
 	# Clear screen
@@ -149,7 +149,7 @@ if __name__ == '__main__':
 	# Initialize
 	p = pyaudio.PyAudio()
 	load_instruments('brass')
-	set_offset(150)
+	set_offset(250)
 
 	#for i in range(p.get_device_count()):
 	#	print p.get_device_info_by_index(i)
