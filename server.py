@@ -36,13 +36,13 @@ logging.basicConfig(
 
 logger = logging.getLogger('server')
 netmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
+netmixer.start()
 
 def load_instruments(patch):
 	global notes
-
-	WPATH = os.getcwd()
-	INSTR = WPATH+'/wav/'+patch
-	print 'instr', INSTR
+	# WPATH = os.getcwd()
+	INSTR = 'http://45.79.175.75/{patch}'.format(patch=patch)
+	print 'hybrid inst', INSTR
 	c = netmixer.Sound(INSTR+'/C.wav')
 	d = netmixer.Sound(INSTR+'/D.wav')
 	e = netmixer.Sound(INSTR+'/E.wav')
@@ -59,20 +59,20 @@ def runmixer_and_stream(conn):
 		if stop_stream:
 			break
 
-		odata, frame_occur, note, tag = netmixer.tick()
+		odata, note, tag = netmixer.tick()
 		time.sleep(0.001)
-		if frame_occur:         # fetch only sound event
-			try:
-				if DEBUG:
-					if tag:
-						# odata = odata+'data----{}:{}----data'.format(note,tag)
-						# odata = base64.b64encode(odata) 		# encode binary buffer to b64
-						print '[TICK] %s with tag #%d at %s'%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
-					
-				conn.send(odata)
-			except socket.error, e:
-				break
-	
+		# if odata:
+		try:
+			if DEBUG:
+				if tag:
+					# odata = odata+'data----{}:{}----data'.format(note,tag)
+					# odata = base64.b64encode(odata) 		# encode binary buffer to b64
+					print '[TICK] %s with tag #%d at %s'%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+				
+			conn.send(odata)
+		except socket.error, e:
+			break
+
 	conn.close()
 
 def run_server(HOST, PORT):
@@ -84,8 +84,8 @@ def run_server(HOST, PORT):
 	s.listen(5)
 	conn, addr = s.accept()
 		
-	Ts = Thread(target = runmixer_and_stream, args=(conn, ))
-	Ts.start()
+	# Ts = Thread(target = runmixer_and_stream, args=(conn, ))
+	# Ts.start()
 	os.system('clear')
 	
 	print "New Connection from %s:%d"%(addr[0], addr[1])
@@ -114,7 +114,7 @@ def run_server(HOST, PORT):
 			if len(rcv_note) > 0:
 				note, tag = unpacker.unpack(rcv_note)
 				if note in ['c','d','e','f','g']:
-					
+					print 'play note', note, offset
 					if DEBUG:
 						print "[RECV] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 					
@@ -122,7 +122,8 @@ def run_server(HOST, PORT):
 									offset=OFFSET,
 									gnote=note, 
 									frame_tag=tag, 
-									debug=DEBUG
+									debug=DEBUG,
+									socket_conn=conn
 								)
 				
 				elif note == 'q': 		# q key note is only intended for quit purpose only, if used then we raise connection reset error
@@ -151,11 +152,12 @@ def run_server(HOST, PORT):
 if __name__ == "__main__":
 	
 	stop_stream = False
-	HOST = '0.0.0.0'
-	# HOST = '127.0.0.1'
+	# HOST = '0.0.0.0'
+	HOST = '127.0.0.1'
 	PORT = 12345
 
 	try:
+		print 'Waiting...'
 		run_server(HOST, PORT)
 
 	except KeyboardInterrupt:

@@ -18,9 +18,9 @@ Released under the LGPL
 import time
 import wave
 import thread
-
 import numpy
 import pyaudio
+import urllib2
 
 try:
     import mad
@@ -179,9 +179,9 @@ class Channel:
         glock.release()
     def _get_samples(self, sz):
         if not self.active: return None
-        if self.src.pos > self.skip_offset * sz + sz*20:
+        if self.src.pos > self.skip_offset * sz + sz*10:
             return None
-        # print 'client audio pos', self.src.pos+sz, self.skip_offset * sz
+        print 'client audio pos', self.src.pos, self.skip_offset * sz + sz*8
         v = calc_vol(self.src.pos, self.env)
         z = self.src.get_samples(sz)
         if self.src.done: self.done = True
@@ -266,7 +266,7 @@ class Sound:
         # Here's how to do it for WAV
         # (Both of the loaders set nc to channels and fr to framerate
         if filename[-3:] in ['wav','WAV']:
-            wf = wave.open(filename, 'rb')
+            wf = wave.open(urllib2.urlopen(filename), 'rb')
             #assert(wf.getsampwidth() == 2)
             nc = wf.getnchannels()
             self.framerate = wf.getframerate()
@@ -631,7 +631,6 @@ def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_
     microphone - whether to enable microphone recording
     
     """
-    print 'localss'
     global gstereo, gchunksize, gsamplerate, gchannels, gsamplewidth
     global ginit
     assert (10000 < samplerate <= 48000)
