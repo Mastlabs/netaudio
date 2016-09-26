@@ -38,15 +38,32 @@ def set_offset(val):
 def load_instruments(patch):
 	global c,d,e,f,g,notes
 
-	INSTR = "http://"+HOST+":8000/"+patch
+	LHOST = '127.0.0.1'
+
+	INSTR = "http://"+LHOST+":8000/"+patch
 	#WPATH = os.getcwd()
 	#INSTR = WPATH+'/wav/'+patch
 
-	c = wave.open(urllib2.urlopen(INSTR+'/C.wav'), 'r')
-	d = wave.open(urllib2.urlopen(INSTR+'/D.wav'), 'r')
-	e = wave.open(urllib2.urlopen(INSTR+'/E.wav'), 'r')
-	f = wave.open(urllib2.urlopen(INSTR+'/F.wav'), 'r')
-	g = wave.open(urllib2.urlopen(INSTR+'/G.wav'), 'r')
+	cfile = wave.open(urllib2.urlopen(INSTR+'/C.wav'), 'r')
+	dfile = wave.open(urllib2.urlopen(INSTR+'/D.wav'), 'r')
+	efile = wave.open(urllib2.urlopen(INSTR+'/E.wav'), 'r')
+	ffile = wave.open(urllib2.urlopen(INSTR+'/F.wav'), 'r')
+	gfile = wave.open(urllib2.urlopen(INSTR+'/G.wav'), 'r')
+
+	for i in range (0, cfile.getnframes()):
+		c.append(cfile.readframes(CHUNK))
+
+	for i in range (0, dfile.getnframes()):
+		d.append(dfile.readframes(CHUNK))
+
+	for i in range (0, efile.getnframes()):
+		e.append(efile.readframes(CHUNK))
+
+	for i in range (0, ffile.getnframes()):
+		f.append(ffile.readframes(CHUNK))
+
+	for i in range (0, gfile.getnframes()):
+		g.append(gfile.readframes(CHUNK))
 	
 	notes = {'c':c, 'd':d, 'e':e, 'f':f, 'g':g}
 
@@ -55,7 +72,7 @@ def play_note(note):
 	#note.rewind()
 	#FEA = OFF - 60
 	for i in range(OFF):
-		frame = note.readframes(CHUNK)
+		frame = note[i]
 
 		# if (i > FEA):
 		# 	#print "DC OFFSET ===================="
@@ -133,11 +150,11 @@ if __name__ == '__main__':
 	DEBUG = False
 	oframes = []
 
-	c = None
-	d = None
-	e = None
-	f = None
-	g = None
+	c = []
+	d = []
+	e = []
+	f = []
+	g = []
 
 	notes = None
 
