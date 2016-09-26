@@ -567,8 +567,11 @@ def start():
     global gthread
     def f():
         while True:
-            tick()
-            time.sleep(0.001)
+            try:
+                tick()
+                time.sleep(0.001)
+            except Exception, e:
+                pass
     gthread = thread.start_new_thread(f, ())
 
 def quit():

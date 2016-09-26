@@ -150,8 +150,8 @@ def splash():
 
 if __name__ == '__main__':
 
-	HOST = '127.0.0.1'	
-	# HOST = '45.79.175.75'
+	# HOST = '127.0.0.1'	
+	HOST = '45.79.175.75'
 	PORT = 12345
 
 	CHUNK = 64
@@ -231,7 +231,7 @@ if __name__ == '__main__':
 		get_remote_latency = get_server_latency('45.79.175.75')
 		print 'latency in ms: ', get_remote_latency
 		if get_remote_latency is not None:
-			OFFSET = int(get_remote_latency)
+			OFFSET = int(get_remote_latency)+100
 
 		#### LOCAL PART
 
