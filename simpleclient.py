@@ -10,6 +10,7 @@
 ###########################################
 import os
 import datetime
+import collections
 import socket
 import pyaudio
 import sys
@@ -18,7 +19,8 @@ import wave
 import numpy
 import struct
 import thread
-import threading
+import urllib2
+import requests
 from threading import Thread, currentThread
 from getch import getch, pause
 
@@ -36,21 +38,22 @@ def set_offset(val):
 def load_instruments(patch):
 	global c,d,e,f,g,notes
 
-	WPATH = os.getcwd()
-	INSTR = WPATH+'/wav/'+patch
+	INSTR = "http://"+HOST+":8000/"+patch
+	#WPATH = os.getcwd()
+	#INSTR = WPATH+'/wav/'+patch
 
-	c = wave.open(INSTR+'/C.wav', 'r')
-	d = wave.open(INSTR+'/D.wav', 'r')
-	e = wave.open(INSTR+'/E.wav', 'r')
-	f = wave.open(INSTR+'/F.wav', 'r')
-	g = wave.open(INSTR+'/G.wav', 'r')
+	c = wave.open(urllib2.urlopen(INSTR+'/C.wav'), 'r')
+	d = wave.open(urllib2.urlopen(INSTR+'/D.wav'), 'r')
+	e = wave.open(urllib2.urlopen(INSTR+'/E.wav'), 'r')
+	f = wave.open(urllib2.urlopen(INSTR+'/F.wav'), 'r')
+	g = wave.open(urllib2.urlopen(INSTR+'/G.wav'), 'r')
 	
 	notes = {'c':c, 'd':d, 'e':e, 'f':f, 'g':g}
 
 def play_note(note):
-	j=1
-	note.rewind()
-	FEA = OFF - 60
+	#j=1
+	#note.rewind()
+	#FEA = OFF - 60
 	for i in range(OFF):
 		frame = note.readframes(CHUNK)
 
@@ -139,7 +142,7 @@ if __name__ == '__main__':
 	notes = None
 
 	# setup socket
-	HOST = ''
+	HOST = 'localhost'
 	#HOST = '45.79.175.75'
 	PORT = 12345
 
