@@ -44,9 +44,7 @@ logging.basicConfig(
 
 def load_instruments(patch):
 	global notes
-
-	WPATH = os.getcwd()
-	INSTR = WPATH+'/wav/'+patch
+	INSTR = 'http://45.79.175.75/{patch}'.format(patch=patch)
 	print 'hybrid inst', INSTR
 	c = swmixer.Sound(INSTR+'/C.wav')
 	d = swmixer.Sound(INSTR+'/D.wav')
@@ -100,56 +98,31 @@ def hybrid_fork_note():
 	
 	s.close()
 
-def store_frames(send_note_thread):
-	global oframes
+def stream_incoming_odata(send_note_thread):
+	
 	while True:
 		if not send_note_thread.isAlive():
 			s.close()
 			break
 
 		odata = s.recv(CHUNK * CHANNELS * 4)
-		# oframes.append(odata)
 
-		pstream.write(odata)
-
-def stream_incoming_odata(send_note_thread):
-	
-	while True:
-		if not send_note_thread.isAlive():
-			break
-
-		# if oframes:
-		# 	ndata = oframes.popleft()
-			# hashf = hash(ndata)
-			# if hashf != 0:
-			# # 	# print 'Start Server streaming', hashf
-			# 	pstream.write(ndata)
-	
-	# while True:
-	
-	# 	if not send_note_thread.isAlive():
-	# 		s.close()
-	# 		break
-
-	# 	odata = s.recv(CHUNK * CHANNELS * 4)
-
-	# 	if DEBUG:
-	# 		# odata = base64.b64decode(odata) 		# decode binary buffer to b64
-	# 		# if 'data----' in odata:
-	# 		# 	try:
-	# 		# 		extra_str = odata[odata.find('data----'):odata.find('----data')]
-	# 		# 		note, tag = tuple(extra_str.split(':'))
-	# 		# 		print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+		# if DEBUG:
+			# odata = base64.b64decode(odata) 		# decode binary buffer to b64
+			# if 'data----' in odata:
+			# 	try:
+			# 		extra_str = odata[odata.find('data----'):odata.find('----data')]
+			# 		note, tag = tuple(extra_str.split(':'))
+			# 		print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 				
-	# 		# 	except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
-	# 		# 		print e
+			# 	except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
+			# 		print e
 				
-	# 		# 	odata = odata.replace(extra_str+'----data', '')
-	# 		pass
+			# 	odata = odata.replace(extra_str+'----data', '')
+			# pass
 
-	# 	if odata:
-	# 		print 'oframes', oframes
-	# 		pstream.write(odata)
+		if odata:
+			pstream.write(odata)
 
 def get_server_latency(HOST):
 	cmd = 'fping -e {host}'.format(host=HOST)
@@ -188,7 +161,6 @@ if __name__ == '__main__':
 	OFFSET = 0
 	PATCH = 'piano'
 	OID = 2
-	oframes = deque()
 	
 	splash()		# Render splash
 	clear = os.system('clear')		# Clear screen
@@ -255,11 +227,11 @@ if __name__ == '__main__':
 		stream.join()
 
 	elif MODE == 'hybrid':
-		
+
 		get_remote_latency = get_server_latency('45.79.175.75')
 		print 'latency in ms: ', get_remote_latency
 		if get_remote_latency is not None:
-			OFFSET = int(get_remote_latency)
+			OFFSET = int(get_remote_latency)+100
 
 		#### LOCAL PART
 
@@ -292,12 +264,9 @@ if __name__ == '__main__':
 		keys = Thread(target=hybrid_fork_note)  
 		keys.start()
 
-		store_buffer = Thread(target=store_frames, args=(keys, ))
-		store_buffer.start()
-
-		# stream = Thread(target=stream_incoming_odata, args=(store_buffer, ))
-		# stream.start()
-		# stream.join()
+		stream = Thread(target=stream_incoming_odata, args=(keys, ))
+		stream.start()
+		stream.join()
 
 	elif MODE == 'quit':
 		quit()

@@ -10,6 +10,8 @@ import wave
 import thread
 import numpy
 import struct
+import urllib2
+
 
 ginit = False
 gstereo = True
@@ -23,6 +25,7 @@ glock = thread.allocate_lock()
 gtick = None
 note = None
 tag = None
+s_conn = None
 
 class _SoundSourceData:
     def __init__(self, data, loops):
@@ -241,7 +244,7 @@ class Sound:
         # Here's how to do it for WAV
         # (Both of the loaders set nc to channels and fr to framerate
         if filename[-3:] in ['wav','WAV']:
-            wf = wave.open(filename, 'rb')
+            wf = wave.open(urllib2.urlopen(filename), 'rb')
             #assert(wf.getsampwidth() == 2)
             nc = wf.getnchannels()
             self.framerate = wf.getframerate()
@@ -301,7 +304,17 @@ class Sound:
         """
         return len(self.data)
 
-    def play(self, volume=1.0, offset=0, fadein=0, envelope=None, loops=0, gnote=None, frame_tag=None, debug=False):
+    def play(self, 
+            volume=1.0, 
+            offset=0, 
+            fadein=0, 
+            envelope=None, 
+            loops=0, 
+            gnote=None, 
+            frame_tag=None, 
+            debug=False,
+            socket_conn=None):
+
         """Play the sound
 
         Keyword arguments:
@@ -318,11 +331,14 @@ class Sound:
         global note
         global tag
         global gtick
+        global s_conn
         sz = gchunksize * gchannels
         gtick = 0
         if gnote:
             note = gnote
             tag = frame_tag
+            print 'socket conn', socket_conn
+            s_conn = socket_conn        # changed on every play
             if debug:
                 print "MIXX PLAY %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 
@@ -512,9 +528,12 @@ def tick():
         gmixer_srcs.remove(e)
 
     glock.release()
-    odata = (b.astype(numpy.int16)).tostring()
-    return (odata, frame_occur, note, c)
-    
+    if frame_occur:
+        odata = (b.astype(numpy.int16)).tostring()
+        s_conn.send(odata)
+        # return (odata, note, c)
+    # return (None, None, None, None)
+
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer
 
@@ -548,8 +567,11 @@ def start():
     global gthread
     def f():
         while True:
-            tick()
-            time.sleep(0.001)
+            try:
+                tick()
+                time.sleep(0.001)
+            except Exception, e:
+                pass
     gthread = thread.start_new_thread(f, ())
 
 def quit():
