@@ -93,6 +93,7 @@ def play_note(note):
 	# lazy to write a lock mechanism. Once we do,
 	# this can move back into the stream thread.		
 
+	'''
 	while len(oframes) > 0:
 		ndata = oframes.pop(0)
 		hashf = hash(ndata)
@@ -100,6 +101,7 @@ def play_note(note):
 			#print "END "+":"+str(hashf)
 			lstream.write(ndata)
 			#time.sleep(0.001)
+	'''
 
 def drain_stream():
 	time.sleep(1.0)
@@ -119,26 +121,26 @@ def send_notes():
 			break
 		# IF CAPS, REMOTE MODE
 		elif note in ['C', 'D', 'E', 'F', 'G']:
-			print "REMOTE NOTE"
-			print "Wait..."
+			print "REMOTE NOTE", note
+			#print "Wait..."
 			s.send(note)
 			drain_stream()
-			print "Play."
+			#print "Play."
 		# IF LOWERCASE, HYBRID MODE
 		elif note in ['c','d','e','f','g']:
-			print "HYBRID NOTE"
-			print "Wait..."
+			print "HYBRID NOTE", note
+			#print "Wait..."
 			s.send(note)
 			play_note(notes[note])
-			print "Play."
+			#print "Play."
 	quit()
 
 def stream_audio():
 	while True:
 		odata = s.recv(CHUNK * CHANNELS * 2)
 		oframes.append(odata)
-		#ndata = oframes.pop(0)
-		#rstream.write(ndata)
+		ndata = oframes.pop(0)
+		rstream.write(ndata)
 		#time.sleep(0.001)
 
 if __name__ == '__main__':
@@ -168,7 +170,7 @@ if __name__ == '__main__':
 
 	# Initialize
 	p = pyaudio.PyAudio()
-	load_instruments('brass')
+	load_instruments('piano')
 	set_offset(250)
 
 	#for i in range(p.get_device_count()):
