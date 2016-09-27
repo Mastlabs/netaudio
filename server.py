@@ -42,6 +42,7 @@ def load_instruments(patch):
 	global notes
 	# WPATH = os.getcwd()
 	INSTR = 'http://45.79.175.75/{patch}'.format(patch=patch)
+	# INSTR = WPATH+'/{}/wav'.format(patch)
 	print 'hybrid inst', INSTR
 	c = netmixer.Sound(INSTR+'/C.wav')
 	d = netmixer.Sound(INSTR+'/D.wav')
@@ -61,7 +62,6 @@ def runmixer_and_stream(conn):
 
 		odata, note, tag = netmixer.tick()
 		time.sleep(0.001)
-		# if odata:
 		try:
 			if DEBUG:
 				if tag:

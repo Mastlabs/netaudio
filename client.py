@@ -89,40 +89,19 @@ def hybrid_fork_note():
 		note = getch()
 		if note == 'q':
 			break
+
 		elif note in ['c','d','e','f','g']:
 			notes[note].play(loffset=OFFSET) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
-			s.send(key_event)
+			try:
+				s.send(key_event)
+			except socket.error, e:
+				break
+			
 			if DEBUG:
 				print "Playing & Sending " + note
 	
 	s.close()
-
-def stream_incoming_odata(send_note_thread):
-	
-	while True:
-		if not send_note_thread.isAlive():
-			s.close()
-			break
-
-		odata = s.recv(CHUNK * CHANNELS * 4)
-
-		# if DEBUG:
-			# odata = base64.b64decode(odata) 		# decode binary buffer to b64
-			# if 'data----' in odata:
-			# 	try:
-			# 		extra_str = odata[odata.find('data----'):odata.find('----data')]
-			# 		note, tag = tuple(extra_str.split(':'))
-			# 		print "[STRM] %s with tag #%s at %s"%(note.strip(), tag.strip(), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
-				
-			# 	except Exception, e:	# Multiple value unpack error occurred if data is not base64 encoded
-			# 		print e
-				
-			# 	odata = odata.replace(extra_str+'----data', '')
-			# pass
-
-		if odata:
-			pstream.write(odata)
 
 def get_server_latency(HOST):
 	cmd = 'fping -e {host}'.format(host=HOST)
@@ -161,7 +140,7 @@ if __name__ == '__main__':
 	OFFSET = 0
 	PATCH = 'piano'
 	OID = 2
-	
+
 	splash()		# Render splash
 	clear = os.system('clear')		# Clear screen
 	MODE = netmidi.select_mode()
@@ -231,23 +210,12 @@ if __name__ == '__main__':
 		get_remote_latency = get_server_latency('45.79.175.75')
 		print 'latency in ms: ', get_remote_latency
 		if get_remote_latency is not None:
-			OFFSET = int(get_remote_latency)+100
+			OFFSET = int(get_remote_latency)
 
 		#### LOCAL PART
 
 		swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
 		load_instruments(PATCH)
-		swmixer.start()
-
-		######## REMOTE PART
-
-		p = pyaudio.PyAudio()
-		pstream = p.open(
-			format = pyaudio.paInt16,
-			channels = 2,
-			rate = 44100,
-			output = True,
-			output_device_index=OID)
 
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
@@ -259,14 +227,10 @@ if __name__ == '__main__':
 			quit()
 
 		commands = cPickle.dumps((PATCH, DEBUG, OFFSET))
-		s.send(commands)
-		
+		s.send(commands)	
+		swmixer.start(s)
 		keys = Thread(target=hybrid_fork_note)  
 		keys.start()
-
-		stream = Thread(target=stream_incoming_odata, args=(keys, ))
-		stream.start()
-		stream.join()
 
 	elif MODE == 'quit':
 		quit()

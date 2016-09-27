@@ -244,7 +244,8 @@ class Sound:
         # Here's how to do it for WAV
         # (Both of the loaders set nc to channels and fr to framerate
         if filename[-3:] in ['wav','WAV']:
-            wf = wave.open(urllib2.urlopen(filename), 'rb')
+            wf = wave.open(filename, 'rb')
+            # wf = wave.open(urllib2.urlopen(filename), 'rb')
             #assert(wf.getsampwidth() == 2)
             nc = wf.getnchannels()
             self.framerate = wf.getframerate()
@@ -307,7 +308,7 @@ class Sound:
     def play(self, 
             volume=1.0, 
             offset=0, 
-            fadein=0, 
+            fadein=1000, 
             envelope=None, 
             loops=0, 
             gnote=None, 
@@ -337,7 +338,6 @@ class Sound:
         if gnote:
             note = gnote
             tag = frame_tag
-            print 'socket conn', socket_conn
             s_conn = socket_conn        # changed on every play
             if debug:
                 print "MIXX PLAY %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
@@ -351,9 +351,9 @@ class Sound:
                 if fadein == 0:
                     env = [[0, volume]]
                 else:
-                    env = [[offset, 0.0], [offset + fadein, volume]]
+                    env = [[offset*sz, 0.0], [offset*sz + fadein, volume]]
         src = _SoundSourceData(self.data, loops)
-        src.pos = offset * sz - sz * 10
+        src.pos = offset * sz - sz * 5
         sndevent = Channel(src, env)
         glock.acquire()
         gmixer_srcs.append(sndevent)

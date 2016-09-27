@@ -21,6 +21,8 @@ import thread
 import numpy
 import pyaudio
 import urllib2
+import socket
+from collections import deque
 
 try:
     import mad
@@ -44,6 +46,9 @@ glock = thread.allocate_lock()
 ginput_device_index = None
 goutput_device_index = None
 gtick = 1
+stream_fr = deque()
+offset_ends = False
+
 
 class _SoundSourceData:
     def __init__(self, data, loops):
@@ -181,7 +186,7 @@ class Channel:
         if not self.active: return None
         if self.src.pos > self.skip_offset * sz + sz*10:
             return None
-        print 'client audio pos', self.src.pos, self.skip_offset * sz + sz*8
+        # print 'client audio pos', self.src.pos, self.skip_offset * sz + sz*8
         v = calc_vol(self.src.pos, self.env)
         z = self.src.get_samples(sz)
         if self.src.done: self.done = True
@@ -266,7 +271,11 @@ class Sound:
         # Here's how to do it for WAV
         # (Both of the loaders set nc to channels and fr to framerate
         if filename[-3:] in ['wav','WAV']:
-            wf = wave.open(urllib2.urlopen(filename), 'rb')
+            try:
+                wf = wave.open(urllib2.urlopen(filename), 'rb')
+            except urllib2.URLError, e:
+                print 'Unable to load wave files, kindly reconnect'
+                raise e.message
             #assert(wf.getsampwidth() == 2)
             nc = wf.getnchannels()
             self.framerate = wf.getframerate()
@@ -355,6 +364,12 @@ class Sound:
         loops - how many times to play the sound (-1 is infinite)
 
         """
+        global stream_fr
+        global offset_ends
+
+        stream_fr = deque()         # Here we reinit deque for every note else this will be a queue of long running note
+        offset_ends = False
+
         if envelope != None:
             env = envelope
         else:
@@ -572,7 +587,7 @@ def get_microphone():
     glock.release()
     return numpy.fromstring(gmicdata, dtype=numpy.int16)
     
-def tick(extra=None):
+def tick(extra=None, s_conn=None):
     """Main loop of mixer, mix and do audio IO
 
     Audio sources are mixed by addition and then clipped.  Too many
@@ -584,7 +599,9 @@ def tick(extra=None):
     """
     global ginit
     global gmixer_srcs
-   
+    global stream_fr
+    global offset_ends
+
     frame_occur = False
     rmlist = []
     if not ginit:
@@ -596,6 +613,8 @@ def tick(extra=None):
     for sndevt in gmixer_srcs:
         s = sndevt._get_samples(sz)
         if s is not None:
+            if sndevt.src.pos > sndevt.skip_offset*sz:
+                offset_ends = True
             b += s
             frame_occur = True
         if sndevt.done:
@@ -609,13 +628,29 @@ def tick(extra=None):
     if gmic:
         gmicdata = gmicstream.read(sz)
     glock.release()
-    odata = (b.astype(numpy.int16)).tostring()
-    # yield rather than block, pyaudio doesn't release GIL
     
     while gstream.get_write_available() < gchunksize: time.sleep(0.001)
+    
     if frame_occur:
+        # print 'real offser frame', offset_ends, len(stream_fr)
+        odata = (b.astype(numpy.int16)).tostring()
+        # yield rather than block, pyaudio doesn't release GIL
         gstream.write(odata, gchunksize)
 
+        try:
+            stream_fr.append(s_conn.recv(sz*2))         # return only frame if available else nothing
+        except Exception, e:
+            pass
+        
+    if offset_ends:                   # the buffer behind the client dequeue
+        try:
+            stream_fr.append(s_conn.recv(sz*2))
+            gstream.write(stream_fr.popleft(), gchunksize)
+    
+        except socket.error, e:
+            pass
+        
+            
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
     """Initialize mixer
 
@@ -667,14 +702,15 @@ def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_
         output = True)
     ginit = True
 
-def start():
+def start(s):
     """Start separate mixing thread"""
     global gthread
-    def f():
-        while True:
-            tick()
+    def f(s):
+        while True:     # This play only offset
+            tick(s_conn=s)
             time.sleep(0.001)
-    gthread = thread.start_new_thread(f, ())
+    gthread = thread.start_new_thread(f, (s,))
+
 
 def quit():
     """Stop all playback and terminate mixer"""
