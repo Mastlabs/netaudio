@@ -9,7 +9,6 @@ import datetime
 import wave
 import thread
 import numpy
-import pyaudio
 import struct
 import urllib2
 
