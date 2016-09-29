@@ -48,7 +48,7 @@ goutput_device_index = None
 gtick = 1
 stream_fr = deque()
 offset_ends = False
-
+mix_buff = deque()
 
 class _SoundSourceData:
     def __init__(self, data, loops):
@@ -184,7 +184,7 @@ class Channel:
         glock.release()
     def _get_samples(self, sz):
         if not self.active: return None
-        if self.src.pos > self.skip_offset * sz + sz*10:
+        if self.src.pos > self.skip_offset * sz:
             return None
         # print 'client audio pos', self.src.pos, self.skip_offset * sz + sz*8
         v = calc_vol(self.src.pos, self.env)
@@ -366,10 +366,10 @@ class Sound:
         """
         global stream_fr
         global offset_ends
-
+        
         stream_fr = deque()         # Here we reinit deque for every note else this will be a queue of long running note
         offset_ends = False
-
+        
         if envelope != None:
             env = envelope
         else:
@@ -602,6 +602,7 @@ def tick(extra=None, s_conn=None):
     global stream_fr
     global offset_ends
 
+    odata = None
     frame_occur = False
     rmlist = []
     if not ginit:
@@ -629,27 +630,26 @@ def tick(extra=None, s_conn=None):
         gmicdata = gmicstream.read(sz)
     glock.release()
     
-    while gstream.get_write_available() < gchunksize: time.sleep(0.001)
-    
     if frame_occur:
-        # print 'real offser frame', offset_ends, len(stream_fr)
         odata = (b.astype(numpy.int16)).tostring()
-        # yield rather than block, pyaudio doesn't release GIL
-        gstream.write(odata, gchunksize)
 
-        try:
-            stream_fr.append(s_conn.recv(sz*2))         # return only frame if available else nothing
-        except Exception, e:
-            pass
-        
     if offset_ends:                   # the buffer behind the client dequeue
-        try:
-            stream_fr.append(s_conn.recv(sz*2))
-            gstream.write(stream_fr.popleft(), gchunksize)
+        glock.acquire()
+        if stream_fr:
+            srv_data = numpy.fromstring(stream_fr.popleft(), dtype=numpy.int16)
+            for chunk in range(0,len(srv_data),sz):
+                sz_sample = srv_data[:sz]
+                if numpy.count_nonzero(sz_sample) == 0: continue
+                b += sz_sample
+
+        b = b.clip(-32767.0, 32767.0)        
+        glock.release()
     
-        except socket.error, e:
-            pass
-        
+        odata = (b.astype(numpy.int16)).tostring()
+    
+    if odata:
+        while gstream.get_write_available() < gchunksize: time.sleep(0.001)
+        gstream.write(odata, gchunksize)        
             
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
     """Initialize mixer
@@ -704,13 +704,26 @@ def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_
 
 def start(s):
     """Start separate mixing thread"""
+    global stream_fr
     global gthread
+    global mix_buff
+
     def f(s):
+        print 'f thread starts'
         while True:     # This play only offset
             tick(s_conn=s)
             time.sleep(0.001)
     gthread = thread.start_new_thread(f, (s,))
 
+    def srv(s):
+        print 'srv thread starts'
+        while True:
+            try:
+                stream_fr.append(s.recv(256))
+            except socket.error, e:
+                pass
+
+    srv_thread = thread.start_new_thread(srv, (s,))
 
 def quit():
     """Stop all playback and terminate mixer"""

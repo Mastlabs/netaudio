@@ -9,6 +9,7 @@ import datetime
 import wave
 import thread
 import numpy
+import pyaudio
 import struct
 import urllib2
 
@@ -333,7 +334,7 @@ class Sound:
         global tag
         global gtick
         global s_conn
-        sz = gchunksize * gchannels
+        sz = 128
         gtick = 0
         if gnote:
             note = gnote
@@ -353,7 +354,7 @@ class Sound:
                 else:
                     env = [[offset*sz, 0.0], [offset*sz + fadein, volume]]
         src = _SoundSourceData(self.data, loops)
-        src.pos = offset * sz - sz * 5
+        src.pos = offset * sz if offset > 0 else offset
         sndevent = Channel(src, env)
         glock.acquire()
         gmixer_srcs.append(sndevent)
@@ -530,9 +531,7 @@ def tick():
     glock.release()
     if frame_occur:
         odata = (b.astype(numpy.int16)).tostring()
-        s_conn.send(odata)
-        # return (odata, note, c)
-    # return (None, None, None, None)
+        s_conn.sendall(odata)
 
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer

@@ -96,6 +96,7 @@ def hybrid_fork_note():
 			try:
 				s.send(key_event)
 			except socket.error, e:
+				print e
 				break
 			
 			if DEBUG:
@@ -218,6 +219,7 @@ if __name__ == '__main__':
 		load_instruments(PATCH)
 
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.setblocking(1)
 		try:
 			connect_res = s.connect_ex((HOST, PORT))
 		except socket.error, msg:
@@ -227,7 +229,12 @@ if __name__ == '__main__':
 			quit()
 
 		commands = cPickle.dumps((PATCH, DEBUG, OFFSET))
-		s.send(commands)	
+		
+		try:
+			s.send(commands)
+		except socket.error, e:
+			pass
+		
 		swmixer.start(s)
 		keys = Thread(target=hybrid_fork_note)  
 		keys.start()

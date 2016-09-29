@@ -23,7 +23,7 @@ from getch import getch, pause
 from Queue import Queue
 from threading import Thread, currentThread, enumerate
 
-CHUNK = 64
+CHUNK = 128
 CHANNELS = 2
 DEBUG = False
 OFFSET = 0
@@ -77,6 +77,8 @@ def runmixer_and_stream(conn):
 
 def run_server(HOST, PORT):
 
+	global stop_stream
+
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  		# occurs because the previous execution of your script has left the socket in a TIME_WAIT state, and can't be immediately reused, This can be resolved by using the socket.SO_REUSEADDR flag.
 	s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
@@ -93,7 +95,10 @@ def run_server(HOST, PORT):
 
 	try:
 		cmd = conn.recv(64)
-		patch, debug, offset = cPickle.loads(cmd)
+		try:
+			patch, debug, offset = cPickle.loads(cmd)
+		except cPickle.UnpicklingError, e:
+			pass
 		
 		load_instruments(patch)
 
@@ -147,6 +152,11 @@ def run_server(HOST, PORT):
 				print 'Server re-initiated'
 
 			run_server(HOST, PORT) 		# Close old socket object and connection and re-create recursively
+
+	if stop_stream:
+		conn.shutdown(2)
+		conn.close()
+		s.close()
 
 
 if __name__ == "__main__":
