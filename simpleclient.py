@@ -38,11 +38,16 @@ def set_offset(val):
 def load_instruments(patch):
 	global c,d,e,f,g,notes
 
-	LHOST = '127.0.0.1'
+	LHOST = '45.79.175.75'
+	
+	#LHOST = '127.0.0.1'
 
 	INSTR = "http://"+LHOST+":8000/"+patch
+	
 	#WPATH = os.getcwd()
 	#INSTR = WPATH+'/wav/'+patch
+
+	print "Loading Instruments..."
 
 	cfile = wave.open(urllib2.urlopen(INSTR+'/C.wav'), 'r')
 	dfile = wave.open(urllib2.urlopen(INSTR+'/D.wav'), 'r')
@@ -50,21 +55,27 @@ def load_instruments(patch):
 	ffile = wave.open(urllib2.urlopen(INSTR+'/F.wav'), 'r')
 	gfile = wave.open(urllib2.urlopen(INSTR+'/G.wav'), 'r')
 
+	print "C",
 	for i in range (0, cfile.getnframes()):
 		c.append(cfile.readframes(CHUNK))
 
+	print "D",
 	for i in range (0, dfile.getnframes()):
 		d.append(dfile.readframes(CHUNK))
 
+	print "E",
 	for i in range (0, efile.getnframes()):
 		e.append(efile.readframes(CHUNK))
 
+	print "F",
 	for i in range (0, ffile.getnframes()):
 		f.append(ffile.readframes(CHUNK))
 
+	print "G"
 	for i in range (0, gfile.getnframes()):
 		g.append(gfile.readframes(CHUNK))
 	
+	print "Instruments Loaded."
 	notes = {'c':c, 'd':d, 'e':e, 'f':f, 'g':g}
 
 def play_note(note):
@@ -93,7 +104,7 @@ def play_note(note):
 	# lazy to write a lock mechanism. Once we do,
 	# this can move back into the stream thread.		
 
-	'''
+
 	while len(oframes) > 0:
 		ndata = oframes.pop(0)
 		hashf = hash(ndata)
@@ -101,7 +112,7 @@ def play_note(note):
 			#print "END "+":"+str(hashf)
 			lstream.write(ndata)
 			#time.sleep(0.001)
-	'''
+
 
 def drain_stream():
 	time.sleep(1.0)
@@ -121,26 +132,25 @@ def send_notes():
 			break
 		# IF CAPS, REMOTE MODE
 		elif note in ['C', 'D', 'E', 'F', 'G']:
-			print "REMOTE NOTE", note
-			#print "Wait..."
+			print "REMOTE NOTE"
+			print "Wait..."
 			s.send(note)
 			drain_stream()
-			#print "Play."
+			print "Play."
 		# IF LOWERCASE, HYBRID MODE
 		elif note in ['c','d','e','f','g']:
-			print "HYBRID NOTE", note
-			#print "Wait..."
+			print "HYBRID NOTE"
+			print "Wait..."
 			s.send(note)
 			play_note(notes[note])
-			#print "Play."
-	quit()
+			print "Play."
 
 def stream_audio():
 	while True:
 		odata = s.recv(CHUNK * CHANNELS * 2)
 		oframes.append(odata)
-		ndata = oframes.pop(0)
-		rstream.write(ndata)
+		#ndata = oframes.pop(0)
+		#lstream.write(ndata)
 		#time.sleep(0.001)
 
 if __name__ == '__main__':
@@ -161,8 +171,8 @@ if __name__ == '__main__':
 	notes = None
 
 	# setup socket
-	HOST = 'localhost'
-	#HOST = '45.79.175.75'
+	#HOST = 'localhost'
+	HOST = '45.79.175.75'
 	PORT = 12345
 
 	# Clear screen
@@ -170,7 +180,7 @@ if __name__ == '__main__':
 
 	# Initialize
 	p = pyaudio.PyAudio()
-	load_instruments('piano')
+	load_instruments('brass')
 	set_offset(250)
 
 	#for i in range(p.get_device_count()):

@@ -35,35 +35,32 @@ def load_instruments(patch):
 	WPATH = os.getcwd()
 	INSTR = WPATH+'/wav/'+patch
 
-	cfile = wave.open(INSTR+'/C.wav', 'r')
-	dfile = wave.open(INSTR+'/D.wav', 'r')
-	efile = wave.open(INSTR+'/E.wav', 'r')
-	ffile = wave.open(INSTR+'/F.wav', 'r')
-	gfile = wave.open(INSTR+'/G.wav', 'r')
-
-	for i in range (0, cfile.getnframes()):
-		c.append(cfile.readframes(CHUNK))
-
-	for i in range (0, dfile.getnframes()):
-		d.append(dfile.readframes(CHUNK))
-
-	for i in range (0, efile.getnframes()):
-		e.append(efile.readframes(CHUNK))
-
-	for i in range (0, ffile.getnframes()):
-		f.append(ffile.readframes(CHUNK))
-
-	for i in range (0, gfile.getnframes()):
-		g.append(gfile.readframes(CHUNK))
+	c = wave.open(INSTR+'/C.wav', 'r')
+	d = wave.open(INSTR+'/D.wav', 'r')
+	e = wave.open(INSTR+'/E.wav', 'r')
+	f = wave.open(INSTR+'/F.wav', 'r')
+	g = wave.open(INSTR+'/G.wav', 'r')
 	
 	notes = {'c':c, 'd':d, 'e':e, 'f':f, 'g':g}
 
 def play_note(note):
-	for i in range(OFF, len(note)):
-		frame = note[i]
+	note.rewind()
+	k = 1
+	for j in range(note.getnframes()):
+		frame = note.readframes(CHUNK)
+		if j < OFF:
+			continue
+		# if (j > OFF and j < OFF+10):
+		# 	print "DC OFFSET ===================="
+		# 	s = numpy.fromstring(frame, numpy.int16)
+		# 	#s = s.clip(-3000.0,3000.0)
+		# 	s = s * (k/10)
+		# 	frame = struct.pack('h'*len(s), *s)
+		# 	k = k + 1
+			
 		hashd = hash(frame) 
 		if hashd != 0:
-			print "FIN "+str(i)+":"+str(hashd)
+			print "FIN "+str(j)+":"+str(hashd)
 			conn.send(frame)
 
 if __name__ == "__main__":
@@ -75,16 +72,16 @@ if __name__ == "__main__":
 	DEBUG = False
 	OFF = 0 
 
-	c = []
-	d = []
-	e = []
-	f = []
-	g = []
+	c = None
+	d = None
+	e = None
+	f = None
+	g = None
 
 	notes = None
 
 	# INITIALIZE
-	load_instruments('piano')
+	load_instruments('brass')
 	set_offset(250)
 
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
