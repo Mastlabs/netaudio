@@ -136,7 +136,7 @@ if __name__ == '__main__':
 	HOST = '45.79.175.75'
 	PORT = 12345
 
-	CHUNK = 512
+	CHUNK = 256
 	CHANNELS = 2
 	MODE = 'local'
 	DEBUG = True
