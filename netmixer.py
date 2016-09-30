@@ -11,6 +11,7 @@ import thread
 import numpy
 import struct
 import urllib2
+import base64
 
 
 ginit = False
@@ -308,7 +309,7 @@ class Sound:
     def play(self, 
             volume=1.0, 
             offset=0, 
-            fadein=1000, 
+            fadein=0,
             envelope=None, 
             loops=0, 
             gnote=None, 
@@ -333,7 +334,7 @@ class Sound:
         global tag
         global gtick
         global s_conn
-        sz = gchunksize*gchannels
+        #sz = gchunksize*gchannels
         gtick = 0
         if gnote:
             note = gnote
@@ -351,9 +352,9 @@ class Sound:
                 if fadein == 0:
                     env = [[0, volume]]
                 else:
-                    env = [[offset*sz, 0.0], [offset*sz + fadein, volume]]
+                    env = [[offset, 0.0], [offset + fadein, volume]]
         src = _SoundSourceData(self.data, loops)
-        src.pos = offset * sz if offset > 0 else offset
+        src.pos = offset * 256 if offset > 0 else offset
         sndevent = Channel(src, env)
         glock.acquire()
         gmixer_srcs.append(sndevent)
@@ -530,7 +531,7 @@ def tick():
     glock.release()
     if frame_occur:
         odata = (b.astype(numpy.int16)).tostring()
-        s_conn.sendall(odata)
+        s_conn.sendall(base64.b64encode(odata))
 
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer

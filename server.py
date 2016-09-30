@@ -23,7 +23,7 @@ from getch import getch, pause
 from Queue import Queue
 from threading import Thread, currentThread, enumerate
 
-CHUNK = 512
+CHUNK = 1024
 CHANNELS = 2
 DEBUG = False
 OFFSET = 0
