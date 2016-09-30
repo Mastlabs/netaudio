@@ -23,7 +23,7 @@ from getch import getch, pause
 from Queue import Queue
 from threading import Thread, currentThread, enumerate
 
-CHUNK = 128
+CHUNK = 512
 CHANNELS = 2
 DEBUG = False
 OFFSET = 0
@@ -40,9 +40,9 @@ netmixer.start()
 
 def load_instruments(patch):
 	global notes
-	# WPATH = os.getcwd()
-	INSTR = 'http://45.79.175.75/{patch}'.format(patch=patch)
-	# INSTR = WPATH+'/{}/wav'.format(patch)
+	WPATH = os.getcwd()
+	# INSTR = 'http://45.79.175.75/{patch}'.format(patch=patch)
+	INSTR = WPATH+'/wav/{}/'.format(patch)
 	print 'hybrid inst', INSTR
 	c = netmixer.Sound(INSTR+'/C.wav')
 	d = netmixer.Sound(INSTR+'/D.wav')
@@ -119,7 +119,7 @@ def run_server(HOST, PORT):
 			if len(rcv_note) > 0:
 				note, tag = unpacker.unpack(rcv_note)
 				if note in ['c','d','e','f','g']:
-					print 'play note', note, offset
+					print 'play note {note} and offset {offset}'.format(note=note,offset=offset)
 					if DEBUG:
 						print "[RECV] %s with tag #%d at %s"%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
 					

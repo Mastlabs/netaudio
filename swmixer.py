@@ -186,7 +186,7 @@ class Channel:
         if not self.active: return None
         if self.src.pos > self.skip_offset * sz:
             return None
-        # print 'client audio pos', self.src.pos, self.skip_offset * sz + sz*8
+        print 'client audio pos', self.src.pos, self.skip_offset * sz
         v = calc_vol(self.src.pos, self.env)
         z = self.src.get_samples(sz)
         if self.src.done: self.done = True
@@ -271,11 +271,8 @@ class Sound:
         # Here's how to do it for WAV
         # (Both of the loaders set nc to channels and fr to framerate
         if filename[-3:] in ['wav','WAV']:
-            try:
-                wf = wave.open(urllib2.urlopen(filename), 'rb')
-            except urllib2.URLError, e:
-                print 'Unable to load wave files, kindly reconnect'
-                raise e.message
+            wf = wave.open(filename, 'rb')
+            # wf = wave.open(urllib2.urlopen(filename), 'rb')
             #assert(wf.getsampwidth() == 2)
             nc = wf.getnchannels()
             self.framerate = wf.getframerate()
@@ -639,12 +636,12 @@ def tick(extra=None, s_conn=None):
             srv_data = numpy.fromstring(stream_fr.popleft(), dtype=numpy.int16)
             for chunk in range(0,len(srv_data),sz):
                 sz_sample = srv_data[:sz]
+                if len(sz_sample) < sz: continue
                 if numpy.count_nonzero(sz_sample) == 0: continue
                 b += sz_sample
 
         b = b.clip(-32767.0, 32767.0)        
         glock.release()
-    
         odata = (b.astype(numpy.int16)).tostring()
     
     if odata:
@@ -719,7 +716,8 @@ def start(s):
         print 'srv thread starts'
         while True:
             try:
-                stream_fr.append(s.recv(256))
+                data = s.recv(2048)
+                stream_fr.append(data)
             except socket.error, e:
                 pass
 

@@ -244,8 +244,8 @@ class Sound:
         # Here's how to do it for WAV
         # (Both of the loaders set nc to channels and fr to framerate
         if filename[-3:] in ['wav','WAV']:
-            # wf = wave.open(filename, 'rb')
-            wf = wave.open(urllib2.urlopen(filename), 'rb')
+            wf = wave.open(filename, 'rb')
+            # wf = wave.open(urllib2.urlopen(filename), 'rb')
             #assert(wf.getsampwidth() == 2)
             nc = wf.getnchannels()
             self.framerate = wf.getframerate()
@@ -333,7 +333,7 @@ class Sound:
         global tag
         global gtick
         global s_conn
-        sz = 128
+        sz = gchunksize*gchannels
         gtick = 0
         if gnote:
             note = gnote

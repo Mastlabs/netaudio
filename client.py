@@ -44,7 +44,9 @@ logging.basicConfig(
 
 def load_instruments(patch):
 	global notes
-	INSTR = 'http://45.79.175.75/{patch}'.format(patch=patch)
+	WPATH = os.getcwd()
+	# INSTR = 'http://45.79.175.75/{patch}'.format(patch=patch)
+	INSTR = WPATH+'/wav/{}/'.format(patch)
 	print 'hybrid inst', INSTR
 	c = swmixer.Sound(INSTR+'/C.wav')
 	d = swmixer.Sound(INSTR+'/D.wav')
@@ -134,7 +136,7 @@ if __name__ == '__main__':
 	HOST = '45.79.175.75'
 	PORT = 12345
 
-	CHUNK = 64
+	CHUNK = 512
 	CHANNELS = 2
 	MODE = 'local'
 	DEBUG = True
