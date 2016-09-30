@@ -629,8 +629,8 @@ def tick(extra=None, s_conn=None):
     glock.release()
     while gstream.get_write_available() < gchunksize: time.sleep(0.001)
     
-    # if frame_occur:
-    #     odata = (b.astype(numpy.int16)).tostring()
+    if frame_occur:
+        odata = (b.astype(numpy.int16)).tostring()
         
     if offset_ends:
         odata = (b.astype(numpy.int16)).tostring()
