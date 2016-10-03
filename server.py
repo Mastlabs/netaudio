@@ -162,8 +162,8 @@ def run_server(HOST, PORT):
 if __name__ == "__main__":
 	
 	stop_stream = False
-	# HOST = '0.0.0.0'
-	HOST = '127.0.0.1'
+	HOST = '0.0.0.0'
+	# HOST = '127.0.0.1'
 	PORT = 12345
 
 	try:
