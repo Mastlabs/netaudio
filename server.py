@@ -23,7 +23,7 @@ from getch import getch, pause
 from Queue import Queue
 from threading import Thread, currentThread, enumerate
 
-CHUNK = 128
+CHUNK = 64
 CHANNELS = 2
 DEBUG = False
 OFFSET = 0
@@ -163,7 +163,9 @@ if __name__ == "__main__":
 	
 	stop_stream = False
 	HOST = '0.0.0.0'
-	# HOST = '127.0.0.1'
+	if DEBUG:
+		print 'connecting local'
+		HOST = '127.0.0.1'
 	PORT = 12345
 
 	try:

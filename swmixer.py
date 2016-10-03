@@ -350,7 +350,14 @@ class Sound:
         """
         return len(self.data)
 
-    def play(self, volume=1.0, offset=0, fadein=0, envelope=None, loops=0, loffset=0):
+    def play(self, 
+            volume=1.0, 
+            offset=0, 
+            fadein=0, 
+            envelope=None, 
+            loops=0, 
+            loffset=0,
+            s_conn=None):
         """Play the sound
 
         Keyword arguments:
@@ -384,6 +391,13 @@ class Sound:
         glock.acquire()
         gmixer_srcs.append(sndevent)
         glock.release()
+
+        def stream(s_conn):
+            while True:
+                data = s_conn.recv(gchunksize*gchannels*2) 
+                stream_fr.append(data)
+
+        gthread = thread.start_new_thread(stream, (s_conn,))
         return sndevent
 
     def scale(self, vol):
@@ -585,7 +599,7 @@ def get_microphone():
     glock.release()
     return numpy.fromstring(gmicdata, dtype=numpy.int16)
     
-def tick(extra=None, s_conn=None):
+def tick(extra=None):
     """Main loop of mixer, mix and do audio IO
 
     Audio sources are mixed by addition and then clipped.  Too many
@@ -613,7 +627,7 @@ def tick(extra=None, s_conn=None):
         s = sndevt._get_samples(sz)
         if s is not None:
             if sndevt.src.pos > sndevt.skip_offset*sz:
-                offset_ends = True
+                offset_ends  = True
             b += s
             frame_occur = True
         if sndevt.done:
@@ -628,16 +642,19 @@ def tick(extra=None, s_conn=None):
         gmicdata = gmicstream.read(sz)
     glock.release()
     
-    # if frame_occur:
-    #     odata = (b.astype(numpy.int16)).tostring()
-        
-    if offset_ends:     # This should be true after offset ends
-        if stream_fr:
-            odata = stream_fr.popleft()
-    
     while gstream.get_write_available() < gchunksize: time.sleep(0.001)    
-    if odata:
+    if frame_occur:
+        odata = (b.astype(numpy.int16)).tostring()
         gstream.write(odata, gchunksize)
+
+    # glock.acquire()
+    if offset_ends:
+        while len(stream_fr) > 0:       # server streaming start    
+            fr = stream_fr.popleft()
+            hashf = hash(fr)
+            if hashf != 0:
+                gstream.write(fr, gchunksize)
+    # glock.release()
 
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
     """Initialize mixer
@@ -690,28 +707,17 @@ def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_
         output = True)
     ginit = True
 
-def start(s):
+def start():
     """Start separate mixing thread"""
     global stream_fr
     global gthread
     
-    def f(s):
+    def f():
         print 'f thread starts'
         while True:     # This play only offset
-            tick(s_conn=s)
+            tick()
             time.sleep(0.001)
-    gthread = thread.start_new_thread(f, (s,))
-
-    def srv(s):
-        print 'srv thread starts'
-        try:
-            while True:
-                stream_fr.append(s.recv(512))
-        except Exception, e:
-            print e
-            pass
-
-    srv_thread = thread.start_new_thread(srv, (s,))
+    gthread = thread.start_new_thread(f, ())
 
 def quit():
     """Stop all playback and terminate mixer"""

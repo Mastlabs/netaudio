@@ -84,16 +84,26 @@ def record_play_note():
 			if DEBUG:
 				print "Playing " + note
 
-def hybrid_fork_note():
+def hybrid_fork_note(s):
+
+	"""
+	we command mixer to play offset
+	and after offset, play stream data from server 
+	which is filled async in a separate thread
+	"""
+
 	tag = 0
 	while True:
+
+		global SND_EVENT
+
 		tag += 1
 		note = getch()
 		if note == 'q':
 			break
 
 		elif note in ['c','d','e','f','g']:
-			notes[note].play(loffset=OFFSET) 			# swmixer play
+			SND_EVENT = notes[note].play(loffset=OFFSET, s_conn=s) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
 			try:
 				s.send(key_event)
@@ -132,17 +142,21 @@ def splash():
 
 if __name__ == '__main__':
 
-	# HOST = '127.0.0.1'	
-	HOST = '45.79.175.75'
-	PORT = 12345
-
-	CHUNK = 128
+	CHUNK = 64
 	CHANNELS = 2
 	MODE = 'local'
-	DEBUG = True
+	DEBUG = False
 	OFFSET = 0
 	PATCH = 'piano'
+	oframes = deque()
 	OID = 2
+	SND_EVENT = None
+	HOST = '45.79.175.75'
+	PORT = 12345
+	
+	if DEBUG:
+		print 'connect localhost'
+		HOST = '127.0.0.1'
 
 	splash()		# Render splash
 	clear = os.system('clear')		# Clear screen
@@ -237,9 +251,8 @@ if __name__ == '__main__':
 		except socket.error, e:
 			pass
 		
-		swmixer.start(s)
-		keys = Thread(target=hybrid_fork_note)  
-		keys.start()
+		swmixer.start()
+		hybrid_fork_note(s)
 
 	elif MODE == 'quit':
 		quit()
