@@ -23,7 +23,7 @@ from getch import getch, pause
 from Queue import Queue
 from threading import Thread, currentThread, enumerate
 
-CHUNK = 1024
+CHUNK = 128
 CHANNELS = 2
 DEBUG = False
 OFFSET = 0
@@ -162,8 +162,8 @@ def run_server(HOST, PORT):
 if __name__ == "__main__":
 	
 	stop_stream = False
-	HOST = '0.0.0.0'
-	# HOST = '127.0.0.1'
+	# HOST = '0.0.0.0'
+	HOST = '127.0.0.1'
 	PORT = 12345
 
 	try:

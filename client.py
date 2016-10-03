@@ -132,11 +132,11 @@ def splash():
 
 if __name__ == '__main__':
 
-	# HOST = '127.0.0.1'	
-	HOST = '45.79.175.75'
+	HOST = '127.0.0.1'	
+	# HOST = '45.79.175.75'
 	PORT = 12345
 
-	CHUNK = 256
+	CHUNK = 128
 	CHANNELS = 2
 	MODE = 'local'
 	DEBUG = True

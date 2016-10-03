@@ -21,6 +21,7 @@ import thread
 import numpy
 import pyaudio
 import urllib2
+import struct
 import socket
 import base64
 from collections import deque
@@ -49,7 +50,6 @@ goutput_device_index = None
 gtick = 1
 stream_fr = deque()
 offset_ends = False
-mix_buff = deque()
 
 class _SoundSourceData:
     def __init__(self, data, loops):
@@ -187,7 +187,7 @@ class Channel:
         if not self.active: return None
         if self.src.pos > self.skip_offset * sz:
             return None
-        # print 'client audio pos', self.src.pos, self.skip_offset * 512
+        print 'client audio pos', self.src.pos, self.skip_offset * sz
         v = calc_vol(self.src.pos, self.env)
         z = self.src.get_samples(sz)
         if self.src.done: self.done = True
@@ -627,15 +627,16 @@ def tick(extra=None, s_conn=None):
     if gmic:
         gmicdata = gmicstream.read(sz)
     glock.release()
-    while gstream.get_write_available() < gchunksize: time.sleep(0.001)
     
-    if frame_occur:
-        odata = (b.astype(numpy.int16)).tostring()
+    # if frame_occur:
+    #     odata = (b.astype(numpy.int16)).tostring()
         
-    if offset_ends:
-        odata = (b.astype(numpy.int16)).tostring()
-        
-    if numpy.count_nonzero(b) != 0 and odata:
+    if offset_ends:     # This should be true after offset ends
+        if stream_fr:
+            odata = stream_fr.popleft()
+    
+    while gstream.get_write_available() < gchunksize: time.sleep(0.001)    
+    if odata:
         gstream.write(odata, gchunksize)
 
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
@@ -693,8 +694,7 @@ def start(s):
     """Start separate mixing thread"""
     global stream_fr
     global gthread
-    global mix_buff
-
+    
     def f(s):
         print 'f thread starts'
         while True:     # This play only offset
@@ -703,21 +703,13 @@ def start(s):
     gthread = thread.start_new_thread(f, (s,))
 
     def srv(s):
-        global gmixer_srcs
         print 'srv thread starts'
-        while True:
-            try:
-                loops, offset, env = 0, 0, []
-                data = numpy.fromstring(base64.b64decode(s.recv(2048)), dtype=numpy.int16)
-                if numpy.count_nonzero(data) != 0:
-                    src = _SoundSourceData(data, loops)
-                    src.pos = offset
-                    sndevent = Channel(src, env, offset)
-                    glock.acquire()
-                    gmixer_srcs.append(sndevent)
-                    glock.release()
-            except socket.error, e:
-                pass
+        try:
+            while True:
+                stream_fr.append(s.recv(512))
+        except Exception, e:
+            print e
+            pass
 
     srv_thread = thread.start_new_thread(srv, (s,))
 
