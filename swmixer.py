@@ -392,12 +392,6 @@ class Sound:
         gmixer_srcs.append(sndevent)
         glock.release()
 
-        def stream(s_conn):
-            while True:
-                data = s_conn.recv(gchunksize*gchannels*2) 
-                stream_fr.append(data)
-
-        gthread = thread.start_new_thread(stream, (s_conn,))
         return sndevent
 
     def scale(self, vol):
@@ -707,7 +701,7 @@ def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_
         output = True)
     ginit = True
 
-def start():
+def start(s_conn):
     """Start separate mixing thread"""
     global stream_fr
     global gthread
@@ -718,6 +712,14 @@ def start():
             tick()
             time.sleep(0.001)
     gthread = thread.start_new_thread(f, ())
+
+    def stream(s_conn):
+        while True:
+            data = s_conn.recv(gchunksize*gchannels*2) 
+            stream_fr.append(data)
+
+    gthread = thread.start_new_thread(stream, (s_conn,))
+        
 
 def quit():
     """Stop all playback and terminate mixer"""

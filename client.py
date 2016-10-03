@@ -84,7 +84,7 @@ def record_play_note():
 			if DEBUG:
 				print "Playing " + note
 
-def hybrid_fork_note(s):
+def hybrid_fork_note():
 
 	"""
 	we command mixer to play offset
@@ -145,7 +145,7 @@ if __name__ == '__main__':
 	CHUNK = 64
 	CHANNELS = 2
 	MODE = 'local'
-	DEBUG = False
+	DEBUG = True
 	OFFSET = 0
 	PATCH = 'piano'
 	oframes = deque()
@@ -251,8 +251,8 @@ if __name__ == '__main__':
 		except socket.error, e:
 			pass
 		
-		swmixer.start()
-		hybrid_fork_note(s)
+		swmixer.start(s)
+		hybrid_fork_note()
 
 	elif MODE == 'quit':
 		quit()
