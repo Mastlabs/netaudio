@@ -639,15 +639,18 @@ def tick(extra=None):
     while gstream.get_write_available() < gchunksize: time.sleep(0.001)    
     if frame_occur:
         odata = (b.astype(numpy.int16)).tostring()
-        gstream.write(odata, gchunksize)
+        return odata, offset_ends
+
+    return None, offset_ends
+        # gstream.write(odata, gchunksize)
 
     # glock.acquire()
-    if offset_ends:
-        while len(stream_fr) > 0:       # server streaming start    
-            fr = stream_fr.popleft()
-            hashf = hash(fr)
-            if hashf != 0:
-                gstream.write(fr, gchunksize)
+    # if offset_ends:
+    #     while len(stream_fr) > 0:       # server streaming start    
+    #         fr = stream_fr.popleft()
+    #         hashf = hash(fr)
+    #         if hashf != 0:
+    #             gstream.write(fr, gchunksize)
     # glock.release()
 
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):

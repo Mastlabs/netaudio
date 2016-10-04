@@ -30,6 +30,7 @@ from pyfiglet import Figlet
 from threading import Thread, currentThread
 from getch import getch, pause
 from subprocess import Popen, PIPE, STDOUT
+from multiprocessing import Process
 
 
 logger = logging.getLogger('client')
@@ -91,19 +92,19 @@ def hybrid_fork_note():
 	and after offset, play stream data from server 
 	which is filled async in a separate thread
 	"""
-
+	global SYN_STRT
+	global oframes
 	tag = 0
 	while True:
-
-		global SND_EVENT
-
 		tag += 1
 		note = getch()
 		if note == 'q':
 			break
 
 		elif note in ['c','d','e','f','g']:
-			SND_EVENT = notes[note].play(loffset=OFFSET, s_conn=s) 			# swmixer play
+			SYN_STRT = False
+			oframes = deque()
+			sndevt = notes[note].play(loffset=OFFSET, s_conn=s) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
 			try:
 				s.send(key_event)
@@ -115,6 +116,31 @@ def hybrid_fork_note():
 				print "Playing & Sending " + note
 	
 	s.close()
+
+def play_offset(hybrid_thread):
+	
+	global SYN_STRT
+	while True:
+		if not hybrid_thread.isAlive():
+			break
+	
+		off_play, end = swmixer.tick()
+		
+		if end:
+			SYN_STRT = True
+
+		glock.acquire()
+		if off_play:
+			oframes.append(s.recv(CHUNK*CHANNELS*2))
+			swmixer.gstream.write(off_play, CHUNK)
+			time.sleep(0.001)
+		glock.release()
+
+		if SYN_STRT:
+			if oframes:
+				swmixer.gstream.write(oframes.popleft(), CHUNK)
+				oframes.append(s.recv(CHUNK*CHANNELS*2))
+
 
 def get_server_latency(HOST):
 	cmd = 'fping -e {host}'.format(host=HOST)
@@ -150,9 +176,10 @@ if __name__ == '__main__':
 	PATCH = 'piano'
 	oframes = deque()
 	OID = 2
-	SND_EVENT = None
+	SYN_STRT = False
 	HOST = '45.79.175.75'
 	PORT = 12345
+	glock = thread.allocate_lock()
 	
 	if DEBUG:
 		print 'connect localhost'
@@ -251,8 +278,13 @@ if __name__ == '__main__':
 		except socket.error, e:
 			pass
 		
-		swmixer.start(s)
-		hybrid_fork_note()
+		hybrid = Thread(target=hybrid_fork_note)
+		hybrid.start()
+
+		play_off_tick = Thread(target=play_offset, args=(hybrid,))
+		play_off_tick.start()
+		play_off_tick.join()
+
 
 	elif MODE == 'quit':
 		quit()
