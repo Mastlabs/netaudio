@@ -95,7 +95,6 @@ def hybrid_fork_note():
 
 	global SYN_STRT
 	global stop_stream
-	global res_evt
 
 	tag = 0
 
@@ -110,9 +109,7 @@ def hybrid_fork_note():
 			break
 
 		elif note in ['c','d','e','f','g']:
-			
-			if res_evt.isSet(): res_evt.clear()
-
+		
 			SYN_STRT = False
 			sndevt = notes[note].play(loffset=OFFSET, s_conn=s) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
@@ -125,47 +122,44 @@ def hybrid_fork_note():
 			if DEBUG:
 				print "Playing & Sending " + note
 	
-def off_tick(b, mix_str, sz):
+def off_tick(mix_str, sz):
 
 	t = np.fromstring(mix_str, dtype=np.int16)	
-	b += t
-	return b
+	if len(t) < sz:
+		t = np.append(t, np.zeros(sz - len(t), np.int16))
+	
+	return t
 
 def play_offset(hybrid_thread):
-	
-	global stop_stream
-	global SYN_STRT
-	global res_evt
 
-	sz = CHUNK*CHANNELS
-
+	sz = CHUNK * CHANNELS
 	while True:
 
 		if not hybrid_thread.isAlive():
 			break
 		
 		b = np.zeros(sz, np.float)
-
-		if not res_evt.isSet():
-			off_play, end = swmixer.tick()
+		off_play, end = swmixer.tick()
 			
-			if end:
-				SYN_STRT = True
-				res_evt.set()
+		if off_play:
+			b += off_tick(off_play, sz) 		# OFFSET mix
+		
+		if end:
+			oframes.append(s.recv(sz * 2)) 		# oframes cont listen server 
 
-			if off_play:
-				b += off_tick(b, off_play, sz) 		# OFFSET mix
-				
 		while len(oframes) > 0:		 # Initially oframe start fill up by server frame
 			h = oframes.popleft()
-			b += off_tick(b, h, sz) 	# On second iteration of master loop, offset mix is ready as well as server mix is ready, we merge both of them by appending in numpy zero array (b)
+			b += off_tick(h, sz) 	# On second iteration of master loop, offset mix is ready as well as server mix is ready, we merge both of them by appending in numpy zero array (b)
 				
 		b = b.clip(-32767.0, 32767.0)
-		odata = (b.astype(np.int16)).tostring()
-		while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)    
-		swmixer.gstream.write(odata, CHUNK)
-		oframes.append(s.recv(sz*2)) 		# oframes cont listen server 
+		
+		if np.count_nonzero(b) == 0:
+			continue
 
+		odata = (b.astype(np.int16)).tostring()
+		while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
+		swmixer.gstream.write(odata, CHUNK)
+		
 	s.close()
 
 def get_server_latency(HOST):
@@ -206,16 +200,15 @@ if __name__ == '__main__':
 	HOST = '45.79.175.75'
 	PORT = 12345
 	glock = Lock()
-	res_evt = Event()
 
 	if DEBUG:
 		print 'connect localhost'
 		HOST = '127.0.0.1'
 
-	splash()		# Render splash
+	splash()						# Render splash
 	clear = os.system('clear')		# Clear screen
 	MODE = netmidi.select_mode()
-	if MODE in 'Qquit':
+	if MODE and MODE in 'Qquit':
 		quit()
 	
 	#input_id = netmidi.select_midi_device()

@@ -52,29 +52,6 @@ def load_instruments(patch):
 
 	notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
 
-def runmixer_and_stream(conn):
-
-	global stop_stream
-
-	while True:
-		if stop_stream:
-			break
-
-		odata, note, tag = netmixer.tick()
-		time.sleep(0.001)
-		try:
-			if DEBUG:
-				if tag:
-					# odata = odata+'data----{}:{}----data'.format(note,tag)
-					# odata = base64.b64encode(odata) 		# encode binary buffer to b64
-					print '[TICK] %s with tag #%d at %s'%(note, tag, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
-				
-			conn.send(odata)
-		except socket.error, e:
-			break
-
-	conn.close()
-
 def run_server(HOST, PORT):
 
 	global stop_stream
@@ -85,9 +62,7 @@ def run_server(HOST, PORT):
 	s.bind((HOST, PORT))
 	s.listen(5)
 	conn, addr = s.accept()
-		
-	# Ts = Thread(target = runmixer_and_stream, args=(conn, ))
-	# Ts.start()
+	
 	os.system('clear')
 	
 	print "New Connection from %s:%d"%(addr[0], addr[1])
