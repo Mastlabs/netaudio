@@ -160,7 +160,8 @@ class Channel:
         self.set_volume(0.0, fadetime=time)
         glock.release()
     def _get_samples(self, sz):
-        print 'server audio pos',self.src.pos
+        # print 'server audio sample at', datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        # print 'server audio pos',self.src.pos
         if not self.active: return None
         v = calc_vol(self.src.pos, self.env)
         z = self.src.get_samples(sz)

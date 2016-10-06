@@ -27,7 +27,7 @@ import Queue
 import numpy as np
 from collections import deque
 from pyfiglet import Figlet
-from threading import Thread, currentThread
+from threading import Thread, currentThread, enumerate, Event, Lock, RLock
 from getch import getch, pause
 from subprocess import Popen, PIPE, STDOUT
 from multiprocessing import Process
@@ -92,18 +92,28 @@ def hybrid_fork_note():
 	and after offset, play stream data from server 
 	which is filled async in a separate thread
 	"""
+
 	global SYN_STRT
-	global oframes
+	global stop_stream
+	global res_evt
+
 	tag = 0
+
 	while True:
+			
+		if stop_stream:
+			break
+
 		tag += 1
 		note = getch()
-		if note == 'q':
+		if note in 'qQ':
 			break
 
 		elif note in ['c','d','e','f','g']:
+			
+			if res_evt.isSet(): res_evt.clear()
+
 			SYN_STRT = False
-			oframes = deque()
 			sndevt = notes[note].play(loffset=OFFSET, s_conn=s) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
 			try:
@@ -115,32 +125,48 @@ def hybrid_fork_note():
 			if DEBUG:
 				print "Playing & Sending " + note
 	
-	s.close()
+def off_tick(b, mix_str, sz):
+
+	t = np.fromstring(mix_str, dtype=np.int16)	
+	b += t
+	return b
 
 def play_offset(hybrid_thread):
 	
+	global stop_stream
 	global SYN_STRT
+	global res_evt
+
+	sz = CHUNK*CHANNELS
+
 	while True:
+
 		if not hybrid_thread.isAlive():
 			break
-	
-		off_play, end = swmixer.tick()
 		
-		if end:
-			SYN_STRT = True
+		b = np.zeros(sz, np.float)
 
-		glock.acquire()
-		if off_play:
-			oframes.append(s.recv(CHUNK*CHANNELS*2))
-			swmixer.gstream.write(off_play, CHUNK)
-			time.sleep(0.001)
-		glock.release()
+		if not res_evt.isSet():
+			off_play, end = swmixer.tick()
+			
+			if end:
+				SYN_STRT = True
+				res_evt.set()
 
-		if SYN_STRT:
-			if oframes:
-				swmixer.gstream.write(oframes.popleft(), CHUNK)
-				oframes.append(s.recv(CHUNK*CHANNELS*2))
+			if off_play:
+				b += off_tick(b, off_play, sz) 		# OFFSET mix
+				
+		while len(oframes) > 0:		 # Initially oframe start fill up by server frame
+			h = oframes.popleft()
+			b += off_tick(b, h, sz) 	# On second iteration of master loop, offset mix is ready as well as server mix is ready, we merge both of them by appending in numpy zero array (b)
+				
+		b = b.clip(-32767.0, 32767.0)
+		odata = (b.astype(np.int16)).tostring()
+		while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)    
+		swmixer.gstream.write(odata, CHUNK)
+		oframes.append(s.recv(sz*2)) 		# oframes cont listen server 
 
+	s.close()
 
 def get_server_latency(HOST):
 	cmd = 'fping -e {host}'.format(host=HOST)
@@ -151,7 +177,6 @@ def get_server_latency(HOST):
 				return round(float(p[p.find("(")+1:p.find("ms")].strip()))
 			except ValueError, e: 		# unreachable
 				return 0
-	
 	except Exception, e:	# fping not installed
 		return 0
 		
@@ -177,10 +202,12 @@ if __name__ == '__main__':
 	oframes = deque()
 	OID = 2
 	SYN_STRT = False
+	stop_stream = False
 	HOST = '45.79.175.75'
 	PORT = 12345
-	glock = thread.allocate_lock()
-	
+	glock = Lock()
+	res_evt = Event()
+
 	if DEBUG:
 		print 'connect localhost'
 		HOST = '127.0.0.1'
@@ -193,101 +220,106 @@ if __name__ == '__main__':
 	
 	#input_id = netmidi.select_midi_device()
 
-	if MODE == 'local':
-		PATCH = netmidi.select_instrument()
-	
-		if PATCH is None:
-			PATCH = 'piano'
+	try:
 
-		WPATH = '.'
-		INSTR=WPATH+'/wav/'+PATCH
-
-		# Create Mixer
-		swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
-
-		# Set Sounds
-		c = swmixer.Sound(INSTR+'/C.wav')
-		d = swmixer.Sound(INSTR+'/D.wav')
-		e = swmixer.Sound(INSTR+'/E.wav')
-		f = swmixer.Sound(INSTR+'/F.wav')
-		g = swmixer.Sound(INSTR+'/G.wav')
-
-		notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
-
-		swmixer.start()
-		keys = Thread(target=record_play_note)  
-		keys.start()
-
-
-	elif MODE == 'remote':
-
-		p = pyaudio.PyAudio()
-
-		pstream = p.open(
-			format = pyaudio.paInt16,
-			channels = 2,
-			rate = 44100,
-			output = True)
-
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		try:
-			connect_res = s.connect_ex((HOST, PORT)) 		# conenct_ex return integer response, if response is greater than 0 there must be some error
-		except socket.error, msg:
-			if DEBUG:
-				print "Could not connect with server."
-				print msg
-
-			quit()
-
-		commands = cPickle.dumps((PATCH, DEBUG, OFFSET))
-		s.send(commands)
-
-		keys = Thread(target=record_send_note)	
-		keys.start()
-
-		stream = Thread(target=stream_incoming_odata, args=(keys,))
-		stream.start()
-		stream.join()
-
-	elif MODE == 'hybrid':
-
-		get_remote_latency = get_server_latency('45.79.175.75')
-		print 'latency in ms: ', get_remote_latency
-		if get_remote_latency is not None:
-			OFFSET = int(get_remote_latency)
-
-		#### LOCAL PART
-
-		swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
-		load_instruments(PATCH)
-
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.setblocking(1)
-		try:
-			connect_res = s.connect_ex((HOST, PORT))
-		except socket.error, msg:
-			if DEBUG:
-				print "Could not connect with server."
-				print msg
-			quit()
-
-		commands = cPickle.dumps((PATCH, DEBUG, OFFSET))
+		if MODE == 'local':
+			PATCH = netmidi.select_instrument()
 		
-		try:
+			if PATCH is None:
+				PATCH = 'piano'
+
+			WPATH = '.'
+			INSTR=WPATH+'/wav/'+PATCH
+
+			# Create Mixer
+			swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
+
+			# Set Sounds
+			c = swmixer.Sound(INSTR+'/C.wav')
+			d = swmixer.Sound(INSTR+'/D.wav')
+			e = swmixer.Sound(INSTR+'/E.wav')
+			f = swmixer.Sound(INSTR+'/F.wav')
+			g = swmixer.Sound(INSTR+'/G.wav')
+
+			notes = {'c': c, 'd': d, 'e': e, 'f': f, 'g': g}
+
+			swmixer.start()
+			keys = Thread(target=record_play_note)  
+			keys.start()
+
+
+		elif MODE == 'remote':
+
+			p = pyaudio.PyAudio()
+
+			pstream = p.open(
+				format = pyaudio.paInt16,
+				channels = 2,
+				rate = 44100,
+				output = True)
+
+			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			try:
+				connect_res = s.connect_ex((HOST, PORT)) 		# conenct_ex return integer response, if response is greater than 0 there must be some error
+			except socket.error, msg:
+				if DEBUG:
+					print "Could not connect with server."
+					print msg
+
+				quit()
+
+			commands = cPickle.dumps((PATCH, DEBUG, OFFSET))
 			s.send(commands)
-		except socket.error, e:
-			pass
-		
-		hybrid = Thread(target=hybrid_fork_note)
-		hybrid.start()
 
-		play_off_tick = Thread(target=play_offset, args=(hybrid,))
-		play_off_tick.start()
-		play_off_tick.join()
+			keys = Thread(target=record_send_note)	
+			keys.start()
 
+			stream = Thread(target=stream_incoming_odata, args=(keys,))
+			stream.start()
+			stream.join()
 
-	elif MODE == 'quit':
-		quit()
+		elif MODE == 'hybrid':
 
-	else:
-		print 'Unknown selection'
+			get_remote_latency = get_server_latency('45.79.175.75')
+			print 'latency in ms: ', get_remote_latency
+			if get_remote_latency is not None:
+				OFFSET = int(get_remote_latency)
+
+			#### LOCAL PART
+
+			swmixer.init(samplerate=44100, chunksize=CHUNK, stereo=True)
+			load_instruments(PATCH)
+
+			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			s.setblocking(1)
+			try:
+				connect_res = s.connect_ex((HOST, PORT))
+			except socket.error, msg:
+				if DEBUG:
+					print "Could not connect with server."
+					print msg
+				quit()
+
+			commands = cPickle.dumps((PATCH, DEBUG, OFFSET))
+			
+			try:
+				s.send(commands)
+			except socket.error, e:
+				pass
+			
+			hybrid = Thread(target=hybrid_fork_note, name="hybrid")
+			hybrid.start()
+
+			play_off_tick = Thread(target=play_offset, name="play", args=(hybrid,))
+			play_off_tick.start()
+			
+		elif MODE == 'quit':
+			quit()
+
+		else:
+			print 'Unknown selection'
+
+	except KeyboardInterrupt, e:
+		stop_stream = True
+		sys.exit(1)
+

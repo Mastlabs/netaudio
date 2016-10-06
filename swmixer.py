@@ -23,7 +23,7 @@ import pyaudio
 import urllib2
 import struct
 import socket
-import base64
+import datetime
 from collections import deque
 
 try:
@@ -187,7 +187,8 @@ class Channel:
         if not self.active: return None
         if self.src.pos > self.skip_offset * sz:
             return None
-        print 'client audio pos', self.src.pos, self.skip_offset * sz
+        # print 'client audio pos', self.src.pos, self.skip_offset * sz
+        # print 'client audio sample at', datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         v = calc_vol(self.src.pos, self.env)
         z = self.src.get_samples(sz)
         if self.src.done: self.done = True
@@ -642,16 +643,6 @@ def tick(extra=None):
         return odata, offset_ends
 
     return None, offset_ends
-        # gstream.write(odata, gchunksize)
-
-    # glock.acquire()
-    # if offset_ends:
-    #     while len(stream_fr) > 0:       # server streaming start    
-    #         fr = stream_fr.popleft()
-    #         hashf = hash(fr)
-    #         if hashf != 0:
-    #             gstream.write(fr, gchunksize)
-    # glock.release()
 
 def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_device_index=None, output_device_index=None):
     """Initialize mixer
