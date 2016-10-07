@@ -30,8 +30,6 @@ from pyfiglet import Figlet
 from threading import Thread, currentThread, enumerate, Event, Lock, RLock
 from getch import getch, pause
 from subprocess import Popen, PIPE, STDOUT
-from multiprocessing import Process
-
 
 logger = logging.getLogger('client')
 
@@ -46,7 +44,6 @@ logging.basicConfig(
 def load_instruments(patch):
 	global notes
 	WPATH = os.getcwd()
-	# INSTR = 'http://45.79.175.75/{patch}'.format(patch=patch)
 	INSTR = WPATH+'/wav/{}/'.format(patch)
 	print 'hybrid inst', INSTR
 	c = swmixer.Sound(INSTR+'/C.wav')
@@ -93,13 +90,10 @@ def hybrid_fork_note():
 	which is filled async in a separate thread
 	"""
 
-	global SYN_STRT
 	global stop_stream
-
 	tag = 0
 
 	while True:
-			
 		if stop_stream:
 			break
 
@@ -110,7 +104,6 @@ def hybrid_fork_note():
 
 		elif note in ['c','d','e','f','g']:
 		
-			SYN_STRT = False
 			sndevt = notes[note].play(loffset=OFFSET, s_conn=s) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
 			try:
@@ -134,7 +127,6 @@ def play_offset(hybrid_thread):
 
 	sz = CHUNK * CHANNELS
 	while True:
-
 		if not hybrid_thread.isAlive():
 			break
 		
@@ -143,7 +135,7 @@ def play_offset(hybrid_thread):
 			
 		if off_play:
 			b += off_tick(off_play, sz) 		# OFFSET mix
-		
+			
 		if end:
 			oframes.append(s.recv(sz * 2)) 		# oframes cont listen server 
 
@@ -152,10 +144,6 @@ def play_offset(hybrid_thread):
 			b += off_tick(h, sz) 	# On second iteration of master loop, offset mix is ready as well as server mix is ready, we merge both of them by appending in numpy zero array (b)
 				
 		b = b.clip(-32767.0, 32767.0)
-		
-		if np.count_nonzero(b) == 0:
-			continue
-
 		odata = (b.astype(np.int16)).tostring()
 		while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
 		swmixer.gstream.write(odata, CHUNK)
@@ -195,7 +183,6 @@ if __name__ == '__main__':
 	PATCH = 'piano'
 	oframes = deque()
 	OID = 2
-	SYN_STRT = False
 	stop_stream = False
 	HOST = '45.79.175.75'
 	PORT = 12345
