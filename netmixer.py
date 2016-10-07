@@ -532,7 +532,7 @@ def tick():
     glock.release()
     if frame_occur:
         odata = (b.astype(numpy.int16)).tostring()
-        s_conn.send(odata)
+        s_conn.sendall(odata)
 
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer
