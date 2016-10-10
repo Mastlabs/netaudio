@@ -14,7 +14,7 @@ Released under the LGPL
 
 """
 
-
+import sys
 import time
 import wave
 import thread
@@ -47,8 +47,7 @@ gid = 1
 glock = thread.allocate_lock()
 ginput_device_index = None
 goutput_device_index = None
-gtick = 1
-stream_fr = deque()
+gtick = None
 offset_ends = False
 
 class _SoundSourceData:
@@ -370,12 +369,12 @@ class Sound:
         loops - how many times to play the sound (-1 is infinite)
 
         """
-        global stream_fr
         global offset_ends
-        
-        stream_fr = deque()         # Here we reinit deque for every note else this will be a queue of long running note
+        global gtick
+
         offset_ends = False
-        
+        gtick = 0
+
         if envelope != None:
             env = envelope
         else:
@@ -606,8 +605,8 @@ def tick(extra=None):
     """
     global ginit
     global gmixer_srcs
-    global stream_fr
     global offset_ends
+    global gtick
 
     odata = None
     frame_occur = False
@@ -621,8 +620,10 @@ def tick(extra=None):
     for sndevt in gmixer_srcs:
         s = sndevt._get_samples(sz)
         if s is not None:
+            gtick += 1
+            # print('Play frame number (per sample size - 128) #{}\n'.format(gtick))
             if sndevt.src.pos > sndevt.skip_offset*sz:
-                offset_ends  = True
+                offset_ends = True
             b += s
             frame_occur = True
         if sndevt.done:
@@ -697,7 +698,6 @@ def init(samplerate=44100, chunksize=1024, stereo=True, microphone=False, input_
 
 def start(s_conn):
     """Start separate mixing thread"""
-    global stream_fr
     global gthread
     
     def f():
@@ -705,15 +705,7 @@ def start(s_conn):
         while True:     # This play only offset
             tick()
             time.sleep(0.001)
-    gthread = thread.start_new_thread(f, ())
-
-    def stream(s_conn):
-        while True:
-            data = s_conn.recv(gchunksize*gchannels*2) 
-            stream_fr.append(data)
-
-    gthread = thread.start_new_thread(stream, (s_conn,))
-        
+    gthread = thread.start_new_thread(f, ())    
 
 def quit():
     """Stop all playback and terminate mixer"""

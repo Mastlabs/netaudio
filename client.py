@@ -25,6 +25,7 @@ import thread
 import threading
 import Queue
 import numpy as np
+import wave
 from collections import deque
 from pyfiglet import Figlet
 from threading import Thread, currentThread, enumerate, Event, Lock, RLock
@@ -91,6 +92,7 @@ def hybrid_fork_note():
 	"""
 
 	global stop_stream
+
 	tag = 0
 
 	while True:
@@ -103,7 +105,6 @@ def hybrid_fork_note():
 			break
 
 		elif note in ['c','d','e','f','g']:
-		
 			sndevt = notes[note].play(loffset=OFFSET, s_conn=s) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
 			try:
@@ -116,8 +117,11 @@ def hybrid_fork_note():
 				print "Playing & Sending " + note
 	
 def off_tick(mix_str, sz):
-
+	
 	t = np.fromstring(mix_str, dtype=np.int16)	
+	if np.count_nonzero(t) == 0:
+		return None
+
 	if len(t) < sz:
 		t = np.append(t, np.zeros(sz - len(t), np.int16))
 	
@@ -126,28 +130,47 @@ def off_tick(mix_str, sz):
 def play_offset(hybrid_thread):
 
 	sz = CHUNK * CHANNELS
-	while True:
-		if not hybrid_thread.isAlive():
-			break
-		
-		b = np.zeros(sz, np.float)
-		off_play, end = swmixer.tick()
+	try:
+		while True:
+			if not hybrid_thread.isAlive():
+				break
 			
-		if off_play:
-			b += off_tick(off_play, sz) 		# OFFSET mix
+			b = np.zeros(sz, np.float)
+			off_play, end = swmixer.tick()
 			
-		if end:
-			oframes.append(s.recv(sz * 2)) 		# oframes cont listen server 
+			glock.acquire()
+			if off_play:
+				b += off_tick(off_play, sz) 		# OFFSET mix
+				srv_data, fr_num = wave.struct.unpack('256si', s.recv(260)) 		# 256 for odata and 4 bytes for integer
+				if DEBUG:
+					print('Stream frame number (per sample size - 128) #{}\n'.format(fr_num))
+				oframes.put(srv_data)
 
-		while len(oframes) > 0:		 # Initially oframe start fill up by server frame
-			h = oframes.popleft()
-			b += off_tick(h, sz) 	# On second iteration of master loop, offset mix is ready as well as server mix is ready, we merge both of them by appending in numpy zero array (b)
+			if end:
+				srv_data, fr_num = wave.struct.unpack('256si', s.recv(260))
+				if DEBUG:
+					print('Stream frame number (per sample size - 128) #{}\n'.format(fr_num))
+
+				oframes.put(srv_data)
+
+			glock.release()
+
+			if end and oframes: 		 # pop() after offset passes
+				while not oframes.empty():
+					h = oframes.get()
+					d = off_tick(h, sz)
+					if d is None:
+						continue
+					b += d 	# On second iteration of master loop, offset mix is ready as well as server mix is ready, we merge both of them by appending in numpy zero array (b)
 				
-		b = b.clip(-32767.0, 32767.0)
-		odata = (b.astype(np.int16)).tostring()
-		while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
-		swmixer.gstream.write(odata, CHUNK)
-		
+			b = b.clip(-32767.0, 32767.0)
+			odata = (b.astype(np.int16)).tostring()
+			while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
+			swmixer.gstream.write(odata)
+	
+	except Exception, e:
+		pass
+
 	s.close()
 
 def get_server_latency(HOST):
@@ -181,7 +204,7 @@ if __name__ == '__main__':
 	DEBUG = True
 	OFFSET = 0
 	PATCH = 'piano'
-	oframes = deque()
+	oframes = Queue.Queue()
 	OID = 2
 	stop_stream = False
 	HOST = '45.79.175.75'

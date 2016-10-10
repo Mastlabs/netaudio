@@ -336,7 +336,7 @@ class Sound:
         global gtick
         global s_conn
         sz = gchunksize*gchannels
-        gtick = 0
+        gtick = offset
         if gnote:
             note = gnote
             tag = frame_tag
@@ -355,7 +355,7 @@ class Sound:
                 else:
                     env = [[offset, 0.0], [offset + fadein, volume]]
         src = _SoundSourceData(self.data, loops)
-        src.pos = offset * sz if offset > 0 else offset
+        src.pos = offset * sz  if offset > 0 else offset
         sndevent = Channel(src, env)
         glock.acquire()
         gmixer_srcs.append(sndevent)
@@ -520,8 +520,8 @@ def tick():
             b += s
             frame_occur = True
             gtick += 1
-            if gtick == 1:
-                c = tag
+            # if gtick == 1:
+            #     c = tag
                 # print 'init frame tag %s'%tag
         if sndevt.done:
             rmlist.append(sndevt)
@@ -532,7 +532,8 @@ def tick():
     glock.release()
     if frame_occur:
         odata = (b.astype(numpy.int16)).tostring()
-        s_conn.sendall(odata)
+        data = wave.struct.pack('256si', odata, gtick if gtick else 0)
+        s_conn.sendall(data)
 
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer
