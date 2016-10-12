@@ -504,7 +504,7 @@ def tick():
     """
     global ginit
     global gmixer_srcs
-    global gtick
+    # global gtick
     c = None
     frame_occur = False         # If false: blank noise (0 numpy ndarray) occurred else frame happen on every tick call
     rmlist = []
@@ -519,7 +519,7 @@ def tick():
         if s is not None:
             b += s
             frame_occur = True
-            gtick += 1
+            # gtick += 1
             # if gtick == 1:
             #     c = tag
                 # print 'init frame tag %s'%tag
@@ -532,8 +532,7 @@ def tick():
     glock.release()
     if frame_occur:
         odata = (b.astype(numpy.int16)).tostring()
-        data = wave.struct.pack('256si', odata, gtick if gtick else 0)
-        s_conn.sendall(data)
+        s_conn.send(odata)
 
 def init(samplerate=44100, chunksize=1024, stereo=True):
     """Initialize mixer

@@ -92,6 +92,7 @@ def hybrid_fork_note():
 	"""
 
 	global stop_stream
+	global new_offset_evt
 
 	tag = 0
 
@@ -105,6 +106,7 @@ def hybrid_fork_note():
 			break
 
 		elif note in ['c','d','e','f','g']:
+			new_offset_evt.set()
 			sndevt = notes[note].play(loffset=OFFSET, s_conn=s) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
 			try:
@@ -116,63 +118,47 @@ def hybrid_fork_note():
 			if DEBUG:
 				print "Playing & Sending " + note
 	
-def off_tick(mix_str, sz):
-	
-	t = np.fromstring(mix_str, dtype=np.int16)	
-	if np.count_nonzero(t) == 0:
-		return None
-
-	if len(t) < sz:
-		t = np.append(t, np.zeros(sz - len(t), np.int16))
-	
-	return t
 
 def play_offset(hybrid_thread):
 
-	sz = CHUNK * CHANNELS
 	try:
 		while True:
 			if not hybrid_thread.isAlive():
 				break
 			
-			b = np.zeros(sz, np.float)
-			off_play, end = swmixer.tick()
-			
 			glock.acquire()
-			if off_play:
-				b += off_tick(off_play, sz) 		# OFFSET mix
-				srv_data, fr_num = wave.struct.unpack('256si', s.recv(260)) 		# 256 for odata and 4 bytes for integer
-				if DEBUG:
-					print('Stream frame number (per sample size - 128) #{}\n'.format(fr_num))
-				oframes.put(srv_data)
-
-			if end:
-				srv_data, fr_num = wave.struct.unpack('256si', s.recv(260))
-				if DEBUG:
-					print('Stream frame number (per sample size - 128) #{}\n'.format(fr_num))
-
-				oframes.put(srv_data)
-
+			oframes.put(s.recv(sz * 2))
 			glock.release()
 
-			if end and oframes: 		 # pop() after offset passes
-				while not oframes.empty():
-					h = oframes.get()
-					d = off_tick(h, sz)
-					if d is None:
-						continue
-					b += d 	# On second iteration of master loop, offset mix is ready as well as server mix is ready, we merge both of them by appending in numpy zero array (b)
-				
-			b = b.clip(-32767.0, 32767.0)
-			odata = (b.astype(np.int16)).tostring()
-			while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
-			swmixer.gstream.write(odata)
-	
 	except Exception, e:
+		print e
 		pass
 
 	s.close()
 
+def mixing(p):
+
+	while True:
+		if not p.isAlive():
+			break
+
+		off_play, end = swmixer.tick()
+		if off_play:
+			swmixer.gstream.write(off_play, CHUNK)
+
+		if end and oframes:
+			new_offset_evt.clear()
+			while not oframes.empty():
+				h = oframes.get()
+				while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
+				swmixer.gstream.write(h, CHUNK)
+
+				if new_offset_evt.isSet():		# if new event occurd, leave and flush the queue
+					with oframes.mutex:
+						oframes.queue.clear()
+					break
+
+		
 def get_server_latency(HOST):
 	cmd = 'fping -e {host}'.format(host=HOST)
 	try:
@@ -210,6 +196,8 @@ if __name__ == '__main__':
 	HOST = '45.79.175.75'
 	PORT = 12345
 	glock = Lock()
+	sz = CHUNK * CHANNELS
+	new_offset_evt = Event()
 
 	if DEBUG:
 		print 'connect localhost'
@@ -315,6 +303,9 @@ if __name__ == '__main__':
 
 			play_off_tick = Thread(target=play_offset, name="play", args=(hybrid,))
 			play_off_tick.start()
+
+			mix_and_drain = Thread(target=mixing, name='mixing', args=(play_off_tick,))
+			mix_and_drain.start()
 			
 		elif MODE == 'quit':
 			quit()
