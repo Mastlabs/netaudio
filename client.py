@@ -154,12 +154,12 @@ def mixing(p):
 
 		if end and oframes:
 			new_offset_evt.clear()
-			while not oframes.empty():
-				h = oframes.get()
-				while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
-				swmixer.gstream.write(h, CHUNK)
 
-		
+			h = oframes.get()
+			while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
+			swmixer.gstream.write(h, CHUNK)
+			oframes.task_done()	
+
 def get_server_latency(HOST):
 	cmd = 'fping -e {host}'.format(host=HOST)
 	try:
@@ -191,12 +191,12 @@ if __name__ == '__main__':
 	DEBUG = True
 	OFFSET = 0
 	PATCH = 'piano'
-	oframes = None
+	oframes = Queue.Queue()
 	OID = 2
 	stop_stream = False
 	HOST = '45.79.175.75'
 	PORT = 12345
-	glock = Lock()
+	glock = RLock()
 	sz = CHUNK * CHANNELS
 	new_offset_evt = Event()
 
@@ -308,6 +308,8 @@ if __name__ == '__main__':
 			mix_and_drain = Thread(target=mixing, name='mixing', args=(play_off_tick,))
 			mix_and_drain.start()
 			
+			oframes.join()
+
 		elif MODE == 'quit':
 			quit()
 
