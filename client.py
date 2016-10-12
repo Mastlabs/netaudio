@@ -93,6 +93,7 @@ def hybrid_fork_note():
 
 	global stop_stream
 	global new_offset_evt
+	global oframes
 
 	tag = 0
 
@@ -100,12 +101,15 @@ def hybrid_fork_note():
 		if stop_stream:
 			break
 
+		
+
 		tag += 1
 		note = getch()
 		if note in 'qQ':
 			break
 
 		elif note in ['c','d','e','f','g']:
+			oframes = Queue.Queue()
 			new_offset_evt.set()
 			sndevt = notes[note].play(loffset=OFFSET, s_conn=s) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
@@ -120,6 +124,7 @@ def hybrid_fork_note():
 	
 
 def play_offset(hybrid_thread):
+	global oframes
 
 	try:
 		while True:
@@ -127,10 +132,11 @@ def play_offset(hybrid_thread):
 				break
 			
 			glock.acquire()
-			oframes.put(s.recv(sz * 2))
+			if oframes:	
+				oframes.put(s.recv(sz * 2))
 			glock.release()
 
-	except Exception, e:
+	except socket.error, e:
 		print e
 		pass
 
@@ -152,11 +158,6 @@ def mixing(p):
 				h = oframes.get()
 				while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
 				swmixer.gstream.write(h, CHUNK)
-
-				if new_offset_evt.isSet():		# if new event occurd, leave and flush the queue
-					with oframes.mutex:
-						oframes.queue.clear()
-					break
 
 		
 def get_server_latency(HOST):
@@ -190,7 +191,7 @@ if __name__ == '__main__':
 	DEBUG = True
 	OFFSET = 0
 	PATCH = 'piano'
-	oframes = Queue.Queue()
+	oframes = None
 	OID = 2
 	stop_stream = False
 	HOST = '45.79.175.75'
