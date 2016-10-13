@@ -103,8 +103,6 @@ def hybrid_fork_note():
 		if stop_stream:
 			break
 
-		
-
 		tag += 1
 		note = getch()
 		if note in 'qQ':
@@ -152,8 +150,8 @@ def mixing(p):
 	#   -------------------------------------
 	# 	head = np.fromstring(off_play, np.int16)  # from swmixer.tick()
 	#	tail = np.fromstring(h, np.int16)   # from oframes.get()
-	#	mix = np.add(head, tail)
-	# 	mix = mix.clip(-32000.0,32000.0)
+	#	mix = np.add(head, tail) --> mixed amplitude values causes distortion
+	# 	mix = mix.clip(-32000.0,32000.0) --> clip works on values not shape
 	# 	fframe = struct.pack('h'*len(mix), *mix)
 	# 	swmixer.gstream.write(fframe, CHUNK)
 
@@ -162,17 +160,29 @@ def mixing(p):
 			break
 
 		off_play, end = swmixer.tick()
-		if off_play:
-			swmixer.gstream.write(off_play, CHUNK)
+		frame = None
 
-		if end and oframes:
-			new_offset_evt.clear()
-
+		if off_play:	# client offset starts			
+			frame = np.fromstring(off_play, np.int16)
+		
+		if not oframes.empty(): 	# no need of end flag, as soon as server stream frames, start mixing
 			h = oframes.get()
-			while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
-			swmixer.gstream.write(h, CHUNK)
-			#oframes.task_done()	
+			srv_array = np.fromstring(h, np.int16)
+			
+			if len(srv_array) < sz: 	# This situation happens on remote, initially I found sample size between 30-60 in queue
+				srv_array = np.append(srv_array, np.zeros(sz - len(srv_array), np.int16))
 
+			if frame is not None and frame.all():
+				frame = np.add(frame, srv_array)
+			else:
+				frame = srv_array
+
+		if frame is not None:
+			frame = frame.clip(-32767.0, 32767.0)
+			odata = (frame.astype(np.int16)).tostring()
+			while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
+			swmixer.gstream.write(odata, CHUNK)
+			
 def get_server_latency(HOST):
 	cmd = 'fping -e {host}'.format(host=HOST)
 	try:
@@ -203,7 +213,7 @@ if __name__ == '__main__':
 	MODE = 'local'
 	DEBUG = True
 	OFFSET = 0
-	PATCH = 'strings'
+	PATCH = 'piano'
 	oframes = Queue.Queue()
 	OID = 2
 	stop_stream = False
@@ -289,7 +299,7 @@ if __name__ == '__main__':
 			print 'latency in ms: ', get_remote_latency
 			if get_remote_latency is not None:
 				# ADDED 100 frames to the offset, for overhead
-				OFFSET = int(get_remote_latency)+100
+				OFFSET = int(get_remote_latency)
 
 			#### LOCAL PART
 
@@ -323,7 +333,7 @@ if __name__ == '__main__':
 			mix_and_drain.start()
 			
 			oframes.join()
-
+			
 		elif MODE == 'quit':
 			quit()
 
