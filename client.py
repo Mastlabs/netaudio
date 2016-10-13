@@ -149,9 +149,9 @@ def mixing(p):
 	#
 	# 	HERE IS EXAMPLE OF HOW TO MIX
 	# 	THESE START & END SAMPLES EACH LOOP 
-	# 	-------------------------------------
-	# 	head = np.fromstring(h, np.int16)
-	#	tail = np.fromstring(off_play, np.int16)
+	#   -------------------------------------
+	# 	head = np.fromstring(off_play, np.int16)  # from swmixer.tick()
+	#	tail = np.fromstring(h, np.int16)   # from oframes.get()
 	#	mix = np.add(head, tail)
 	# 	mix = mix.clip(-32000.0,32000.0)
 	# 	fframe = struct.pack('h'*len(mix), *mix)
