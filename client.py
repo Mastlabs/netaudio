@@ -154,7 +154,7 @@ def mixing(p):
 	#	tail = np.fromstring(off_play, np.int16)
 	#	mix = np.add(head, tail)
 	# 	mix = mix.clip(-32000.0,32000.0)
-	# 	fframe = struct.pack('h'*len(s), *s)
+	# 	fframe = struct.pack('h'*len(mix), *mix)
 	# 	swmixer.gstream.write(fframe, CHUNK)
 
 	while True:
