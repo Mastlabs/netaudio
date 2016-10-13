@@ -164,7 +164,7 @@ def mixing(p):
 		if off_play:	# client offset starts			
 			frame = np.fromstring(off_play, np.int16)
 		
-		if not oframes.empty(): 	# no need of end flag, as soon as server stream frames, start mixing
+		if end and not oframes.empty(): 	# no need of end flag, as soon as server stream frames, start mixing
 			h = oframes.get()
 			srv_array = np.fromstring(h, np.int16)
 			
@@ -212,7 +212,7 @@ if __name__ == '__main__':
 	MODE = 'local'
 	DEBUG = True
 	OFFSET = 0
-	PATCH = 'piano'
+	PATCH = 'brass'
 	oframes = Queue.Queue()
 	OID = 2
 	stop_stream = False
@@ -298,7 +298,7 @@ if __name__ == '__main__':
 			print 'latency in ms: ', get_remote_latency
 			if get_remote_latency is not None:
 				# ADDED 100 frames to the offset, for overhead
-				OFFSET = int(get_remote_latency)
+				OFFSET = int(get_remote_latency)+200
 
 			#### LOCAL PART
 
