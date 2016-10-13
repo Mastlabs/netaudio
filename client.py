@@ -132,8 +132,7 @@ def play_offset(hybrid_thread):
 				break
 			
 			glock.acquire()
-			if oframes:	
-				oframes.put(s.recv(sz * 2))
+			oframes.put_nowait(s.recv(sz * 2))
 			glock.release()
 
 	except socket.error, e:
