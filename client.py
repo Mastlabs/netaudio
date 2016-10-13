@@ -23,6 +23,8 @@ import pyaudio
 import datetime
 import thread
 import threading
+import struct
+import urllib2
 import Queue
 import numpy as np
 import wave
@@ -144,6 +146,17 @@ def play_offset(hybrid_thread):
 
 def mixing(p):
 
+	#
+	# 	HERE IS EXAMPLE OF HOW TO MIX
+	# 	THESE START & END SAMPLES EACH LOOP 
+	# 	-------------------------------------
+	# 	head = np.fromstring(h, np.int16)
+	#	tail = np.fromstring(off_play, np.int16)
+	#	mix = np.add(head, tail)
+	# 	mix = mix.clip(-32000.0,32000.0)
+	# 	fframe = struct.pack('h'*len(s), *s)
+	# 	swmixer.gstream.write(fframe, CHUNK)
+
 	while True:
 		if not p.isAlive():
 			break
@@ -158,7 +171,7 @@ def mixing(p):
 			h = oframes.get()
 			while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
 			swmixer.gstream.write(h, CHUNK)
-			oframes.task_done()	
+			#oframes.task_done()	
 
 def get_server_latency(HOST):
 	cmd = 'fping -e {host}'.format(host=HOST)
@@ -190,7 +203,7 @@ if __name__ == '__main__':
 	MODE = 'local'
 	DEBUG = True
 	OFFSET = 0
-	PATCH = 'piano'
+	PATCH = 'strings'
 	oframes = Queue.Queue()
 	OID = 2
 	stop_stream = False
@@ -275,7 +288,8 @@ if __name__ == '__main__':
 			get_remote_latency = get_server_latency('45.79.175.75')
 			print 'latency in ms: ', get_remote_latency
 			if get_remote_latency is not None:
-				OFFSET = int(get_remote_latency)
+				# ADDED 100 frames to the offset, for overhead
+				OFFSET = int(get_remote_latency)+100
 
 			#### LOCAL PART
 
