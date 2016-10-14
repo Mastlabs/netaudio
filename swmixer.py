@@ -637,8 +637,7 @@ def tick(extra=None):
     if gmic:
         gmicdata = gmicstream.read(sz)
     glock.release()
-    
-    while gstream.get_write_available() < gchunksize: time.sleep(0.001)    
+
     if frame_occur:
         odata = (b.astype(numpy.int16)).tostring()
         return odata, offset_ends

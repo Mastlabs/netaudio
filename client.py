@@ -131,9 +131,9 @@ def play_offset(hybrid_thread):
 			if not hybrid_thread.isAlive():
 				break
 			
-			glock.acquire()
-			oframes.put_nowait(s.recv(sz * 2))
-			glock.release()
+			sck_data = np.fromstring( s.recv(sz * 2), dtype=np.int16 )
+			if not np.count_nonzero(sck_data) == 0:
+				oframes.put(sck_data, timeout=0.5)
 
 	except socket.error, e:
 		print e
@@ -162,25 +162,20 @@ def mixing(p):
 		frame = None
 
 		if off_play:	# client offset starts			
-			frame = np.fromstring(off_play, np.int16)
+			frame = off_play
 		
 		if end and not oframes.empty(): 	# no need of end flag, as soon as server stream frames, start mixing
 			h = oframes.get()
 			srv_array = np.fromstring(h, np.int16)
 			
-			if len(srv_array) < sz: 	# This situation happens on remote, initially I found sample size between 30-60 in queue
+			if len(srv_array) < sz: 	# This situation may be happen on remote, initially I found sample size between 30-60 in queue
 				srv_array = np.append(srv_array, np.zeros(sz - len(srv_array), np.int16))
 
-			if frame is not None and frame.all():
-				frame = np.add(frame, srv_array)
-			else:
-				frame = srv_array
+			frame = (srv_array.astype(np.int16)).tostring()
 
 		if frame is not None:
-			frame = frame.clip(-32767.0, 32767.0)
-			odata = (frame.astype(np.int16)).tostring()
 			while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
-			swmixer.gstream.write(odata, CHUNK)
+			swmixer.gstream.write(frame, CHUNK)
 			
 def get_server_latency(HOST):
 	cmd = 'fping -e {host}'.format(host=HOST)
@@ -212,7 +207,7 @@ if __name__ == '__main__':
 	MODE = 'local'
 	DEBUG = True
 	OFFSET = 0
-	PATCH = 'brass'
+	PATCH = 'glock'
 	oframes = Queue.Queue()
 	OID = 2
 	stop_stream = False
@@ -298,7 +293,7 @@ if __name__ == '__main__':
 			print 'latency in ms: ', get_remote_latency
 			if get_remote_latency is not None:
 				# ADDED 100 frames to the offset, for overhead
-				OFFSET = int(get_remote_latency)+200
+				OFFSET = int(get_remote_latency)
 
 			#### LOCAL PART
 
