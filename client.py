@@ -207,7 +207,7 @@ if __name__ == '__main__':
 	MODE = 'local'
 	DEBUG = True
 	OFFSET = 0
-	PATCH = 'glock'
+	PATCH = 'brass'
 	oframes = Queue.Queue()
 	OID = 2
 	stop_stream = False
@@ -293,7 +293,7 @@ if __name__ == '__main__':
 			print 'latency in ms: ', get_remote_latency
 			if get_remote_latency is not None:
 				# ADDED 100 frames to the offset, for overhead
-				OFFSET = int(get_remote_latency)
+				OFFSET = int(get_remote_latency)+100
 
 			#### LOCAL PART
 
