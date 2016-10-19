@@ -109,9 +109,8 @@ def hybrid_fork_note():
 			break
 
 		elif note in ['c','d','e','f','g']:
-			oframes = Queue.Queue()
+			
 			new_offset_evt.set()
-			sndevt = notes[note].play(loffset=OFFSET, s_conn=s) 			# swmixer play
 			key_event = struct.pack('si', note, tag)
 			try:
 				s.send(key_event)
@@ -119,8 +118,10 @@ def hybrid_fork_note():
 				print e
 				break
 			
+			sndevt = notes[note].play(loffset=OFFSET, s_conn=s) 		# swmixer play
 			if DEBUG:
 				print "Playing & Sending " + note
+	
 	
 
 def play_offset(hybrid_thread):
@@ -131,9 +132,11 @@ def play_offset(hybrid_thread):
 			if not hybrid_thread.isAlive():
 				break
 			
-			sck_data = np.fromstring( s.recv(sz * 2), dtype=np.int16 )
+			data = s.recv(sz * 2)
+			sck_data = np.fromstring( data, dtype=np.int16 )
 			if not np.count_nonzero(sck_data) == 0:
-				oframes.put(sck_data, timeout=0.5)
+				oframes.put(data, timeout=0.5)
+				#sys.stdout.write("QUEUE: " + str(hash(data))+"\n")
 
 	except socket.error, e:
 		print e
@@ -154,26 +157,32 @@ def mixing(p):
 	# 	fframe = struct.pack('h'*len(mix), *mix)
 	# 	swmixer.gstream.write(fframe, CHUNK)
 
+	flag = False
+
 	while True:
 		if not p.isAlive():
 			break
 
 		off_play, end = swmixer.tick()
-		frame = None
+		frame = np.zeros(sz, np.int16)
 
 		if off_play:	# client offset starts			
 			frame = off_play
 		
-		if end and not oframes.empty(): 	# no need of end flag, as soon as server stream frames, start mixing
+		if flag == False:
+			if end:
+				flag = True
+
+		if flag and not oframes.empty(): 	# no need of end flag, as soon as server stream frames, start mixing
 			h = oframes.get()
 			srv_array = np.fromstring(h, np.int16)
 			
 			if len(srv_array) < sz: 	# This situation may be happen on remote, initially I found sample size between 30-60 in queue
 				srv_array = np.append(srv_array, np.zeros(sz - len(srv_array), np.int16))
 
-			frame = (srv_array.astype(np.int16)).tostring()
+			frame += srv_array
 
-		if frame is not None:
+		if frame.all():
 			while swmixer.gstream.get_write_available() < CHUNK: time.sleep(0.001)
 			swmixer.gstream.write(frame, CHUNK)
 			
@@ -207,7 +216,7 @@ if __name__ == '__main__':
 	MODE = 'local'
 	DEBUG = True
 	OFFSET = 0
-	PATCH = 'brass'
+	PATCH = 'glock'
 	oframes = Queue.Queue()
 	OID = 2
 	stop_stream = False
@@ -293,7 +302,7 @@ if __name__ == '__main__':
 			print 'latency in ms: ', get_remote_latency
 			if get_remote_latency is not None:
 				# ADDED 100 frames to the offset, for overhead
-				OFFSET = int(get_remote_latency)+100
+				OFFSET = int(get_remote_latency)
 
 			#### LOCAL PART
 
